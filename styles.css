@@ -76,15 +76,80 @@ body {
   position: relative; overflow: hidden; color: #fff;
   background: #0a0f1a;
   background-image: linear-gradient(135deg, #080c14 0%, #0f1623 55%, #0d1930 100%);
+  transition: background-color .5s ease, background-image .5s ease, opacity .4s ease;
 }
+/* Ocult fins que el JS aplica el tema: evita el flash de color */
+.hero--init { opacity: 0; }
 .hero::before {
   content: ""; position: absolute; inset: 0; z-index: 1;
   background: radial-gradient(ellipse 55% 90% at 10% 50%, rgba(31,90,224,.15) 0%, transparent 70%);
+  transition: background .5s ease;
 }
-.hero__inner { position: relative; z-index: 2; padding-block: 54px 62px; }
+/* Temes estacionals */
+.hero.season-estiu {
+  background: #0F0500;
+  background-image: linear-gradient(135deg, #0C0300 0%, #1A0B00 55%, #130700 100%);
+  --rink-line: rgba(249,115,22,.5);
+}
+.hero.season-estiu::before {
+  background: radial-gradient(ellipse 55% 90% at 10% 50%, rgba(249,115,22,.18) 0%, transparent 70%);
+}
+.hero.season-primavera {
+  background: #041008;
+  background-image: linear-gradient(135deg, #030D06 0%, #071A0C 55%, #051209 100%);
+  --rink-line: rgba(34,197,94,.5);
+}
+.hero.season-primavera::before {
+  background: radial-gradient(ellipse 55% 90% at 10% 50%, rgba(34,197,94,.15) 0%, transparent 70%);
+}
+.hero.season-tardor {
+  background: #100700;
+  background-image: linear-gradient(135deg, #0D0500 0%, #1C0D00 55%, #150900 100%);
+  --rink-line: rgba(217,119,6,.5);
+}
+.hero.season-tardor::before {
+  background: radial-gradient(ellipse 55% 90% at 10% 50%, rgba(217,119,6,.18) 0%, transparent 70%);
+}
+.hero.season-hivern {
+  /* manté el default, cap override necessari */
+}
+/* Hero content transition (fade en canviar de formulari) */
+.hero__inner {
+  position: relative; z-index: 2; padding-block: 54px 62px;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.hero__inner.is-fading { opacity: 0; transform: translateY(8px); }
+.hero.has-slider .hero__inner { padding-bottom: 78px; }
+/* Pills de navegació del hero slider */
+.hero-nav {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+  padding: 0 20px 20px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 16px; border-radius: 999px;
+  border: 1.5px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7);
+  font-family: "Hanken Grotesk", sans-serif; font-size: .8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  backdrop-filter: blur(10px);
+  transition: background .2s, color .2s, border-color .2s, transform .15s;
+}
+.hero-pill__icon { font-size: .95em; }
+.hero-pill.is-active {
+  background: rgba(255,255,255,.95); color: var(--navy);
+  border-color: rgba(255,255,255,.95);
+}
+.hero-pill:hover:not(.is-active) {
+  background: rgba(255,255,255,.18); color: #fff; border-color: rgba(255,255,255,.55);
+  transform: translateY(-1px);
+}
 .eyebrow {
   font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .14em;
-  font-size: .82rem; color: var(--rink-line); margin: 0 0 14px;
+  font-size: 1.05rem; color: var(--rink-line); margin: 0 0 14px;
 }
 .hero__title {
   font-family: "Anton", sans-serif; font-weight: 400; font-size: var(--fs-display);
@@ -219,6 +284,55 @@ body {
   border-radius: 50%; animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Hero fora del flow durant loading → el loader queda centrat a pantalla */
+.page--loading .hero { display: none; }
+/* Pantalla de càrrega inicial — ocupa tot l'espai disponible */
+.page--loading #loading {
+  min-height: calc(100vh - 60px);
+  padding: 0 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+/* Animació de càrrega: cercle de pista que es dibuixa sol */
+.load-rink {
+  width: 72px; height: 72px;
+  margin: 0 auto 32px;
+  flex-shrink: 0;
+}
+.load-rink svg { display: block; width: 100%; height: 100%; }
+/* circumferència = 2π×24 ≈ 151 */
+.load-rink__trace {
+  stroke: var(--blue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  transform: rotate(-90deg);
+  transform-origin: 32px 32px;
+  animation: trace-circle 2s ease-in-out infinite;
+}
+@keyframes trace-circle {
+  0%   { stroke-dashoffset: 151; opacity: 0; }
+  8%   { opacity: 1; }
+  62%  { stroke-dashoffset: 0;   opacity: 1; }
+  80%  { stroke-dashoffset: 0;   opacity: 0; }
+  100% { stroke-dashoffset: 151; opacity: 0; }
+}
+.load-rink__spot {
+  fill: var(--blue);
+  transform-origin: 32px 32px;
+  animation: spot-appear 2s ease-in-out infinite;
+}
+@keyframes spot-appear {
+  0%, 55%  { transform: scale(.5);  opacity: .2; }
+  70%, 78% { transform: scale(1.2); opacity: 1;  }
+  90%      { transform: scale(.5);  opacity: 0;  }
+  100%     { transform: scale(.5);  opacity: 0;  }
+}
+.load-camp {
+  font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .05em;
+  font-size: 1.1rem; color: var(--navy); margin: 0 0 8px;
+}
+.load-hint { font-size: .84rem; color: var(--ink-soft); margin: 0; }
 
 /* ---------- Seccions del formulari ---------- */
 .form { animation: rise .5s ease both; }

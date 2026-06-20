@@ -26,7 +26,7 @@
   </header>
 
   <!-- Hero amb pista d'hoquei -->
-  <section class="hero">
+  <section class="hero hero--init" id="hero">
     <div class="rink" aria-hidden="true">
       <span class="rink__perim"></span>
       <span class="rink__mid"></span>
@@ -35,10 +35,11 @@
       <span class="rink__d"></span>
     </div>
     <div class="wrap hero__inner">
-      <p class="eyebrow"><span data-tagline>Inscripcions obertes</span> · <span data-season>2026</span></p>
+      <p class="eyebrow"><span data-tagline>Inscripcions obertes</span></p>
       <h1 class="hero__title" data-hero-title>Casal d'Hoquei d'Estiu</h1>
       <p class="hero__lead" data-intro>Completa la inscripció, tria les setmanes i rep la confirmació al correu.</p>
     </div>
+    <nav class="hero-nav" id="hero-nav" aria-label="Formularis disponibles" hidden></nav>
   </section>
 
   <main class="wrap main" id="main">
@@ -54,9 +55,15 @@
     </div>
 
     <!-- Estats -->
-    <div class="state" id="loading">
-      <div class="spinner" aria-hidden="true"></div>
-      <p>Carregant el formulari…</p>
+    <div class="state state--splash" id="loading">
+      <div class="load-rink" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="24" class="load-rink__trace"/>
+          <circle cx="32" cy="32" r="3.5" class="load-rink__spot"/>
+        </svg>
+      </div>
+      <p class="load-camp" data-camp-name>Campus Hoquei Riudebitlles</p>
+      <p class="load-hint">Carregant…</p>
     </div>
     <div class="state state--error" id="load-error" hidden>
       <p class="state__title">No s'ha pogut carregar el formulari</p>

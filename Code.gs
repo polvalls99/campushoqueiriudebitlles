@@ -98,8 +98,8 @@ function buildConfig(form) {
     campuses: readCampuses(),
     weeks: readWeeks(form),
     fields: readFields(form),
-    form: { id: info.id, nombre: info.nombre, habilitado: info.habilitado },
-    forms: forms.map(function (f) { return { id: f.id, nombre: f.nombre, habilitado: f.habilitado }; })
+    form: { id: info.id, nombre: info.nombre, habilitado: info.habilitado, estacio: info.estacio },
+    forms: forms.map(function (f) { return { id: f.id, nombre: f.nombre, habilitado: f.habilitado, estacio: f.estacio }; })
   };
 }
 // Files amb la columna "form" buida = compartides per tots els formularis.
@@ -124,7 +124,7 @@ function readSettings(form) {
 function readForms() {
   return readTable(SHEETS.forms).filter(function (r) { return r.id; }).map(function (r) {
     var hab = (r.habilitado == null || String(r.habilitado).trim() === "") ? true : truthy(r.habilitado);
-    return { id: String(r.id).trim(), nombre: str(r.nombre), habilitado: hab, hoja: str(r.hoja) };
+    return { id: String(r.id).trim(), nombre: str(r.nombre), habilitado: hab, hoja: str(r.hoja), estacio: str(r.estacio) };
   });
 }
 function findForm(id) {

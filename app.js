@@ -6,7 +6,7 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqDbBO6LmUT-NsDz4lMQkl-ZndN6uJ8ekJ3jM8TT2UfTitFGAYhb2nUTekEN4ki9as/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZGtbKs0pWfBjR7O0RZOPXtyiNU1_aGH3U8x5Xd8W7QUnBYr4FY31wg_tvIV4UwOaW/exec";
 
 // 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
 // Buit = formulari per defecte (les files del full sense columna "form").
@@ -72,12 +72,22 @@ const DEMO_CONFIG = {
     { id: "targeta_sanitaria", etiqueta: "Còpia de la targeta sanitària", tipo: "file", opciones: "image/*,application/pdf", obligatorio: false, ayuda: "Foto o PDF. Si ja l'has enviat altres anys, pots saltar aquest pas o enviar-la a coordinaciocpriudebitlles@gmail.com.", grupo: "Documentació", orden: 14 },
     // Protecció de dades
     { id: "nota_lopd", etiqueta: "Protecció de dades", tipo: "nota", ayuda: T_LOPD, grupo: "Protecció de dades", orden: 15 }
+  ],
+  form:  { id: "estiu", nombre: "Casal d'Estiu 2026",      habilitado: true, estacio: "estiu" },
+  forms: [
+    { id: "estiu",     nombre: "Casal d'Estiu 2026",        habilitado: true, estacio: "estiu" },
+    { id: "primavera", nombre: "Casal de Primavera 2027",   habilitado: true, estacio: "primavera" },
+    { id: "hivern",    nombre: "Casal de Nadal 2026",       habilitado: true, estacio: "hivern" }
   ]
 };
 
 // ---- Estat ----
 let CONFIG = null;
 let currentCampus = null;
+let activeFormId = FORM_ID;     // pot canviar quan l'usuari alterna formularis al hero
+let allForms = [];              // llista de formularis disponibles (del config)
+let currentFormIdx = 0;         // índex actiu al slider del hero
+let heroTouchStartX = 0;        // per al swipe tàctil
 let childCount = 1;            // quants jugadors/es s'estan inscrivint alhora
 let returningDismissed = false; // l'usuari ha tancat la barra "ja t'havíem vist"
 let draftSaveTimer = null;
@@ -87,6 +97,7 @@ const els = {};
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  document.body.classList.add("page--loading");
   cache();
   hideReturning();
   returningDismissed = loadReturningDismissed();
@@ -108,6 +119,15 @@ function cache() {
   els.sections = id("form-sections");
 }
 
+// ---- Helpers ----
+function revealHero() {
+  document.body.classList.remove("page--loading");
+  requestAnimationFrame(function() {
+    var hero = document.getElementById("hero");
+    if (hero) hero.classList.remove("hero--init");
+  });
+}
+
 // ---- Càrrega ----
 async function load() {
   els.loading.hidden = false; els.loadError.hidden = true; els.closed.hidden = true;
@@ -116,27 +136,32 @@ async function load() {
   try {
     CONFIG = await fetchConfig();
     applySettings(CONFIG.settings || {});
+    initHeroSlider();
     if (CONFIG.form && CONFIG.form.habilitado === false) {
-      els.loading.hidden = true; els.closed.hidden = false; return;
+      els.loading.hidden = true; els.closed.hidden = false;
+      revealHero(); return;
     }
     const open = enabledCampuses();
     if (CONFIG.campuses && CONFIG.campuses.length && open.length === 0) {
-      els.loading.hidden = true; els.closed.hidden = false; return;
+      els.loading.hidden = true; els.closed.hidden = false;
+      revealHero(); return;
     }
     currentCampus = open.length ? open[0].id : null;
     renderForm();
     els.loading.hidden = true; els.form.hidden = false;
+    revealHero();
     maybeShowReturning();
   } catch (err) {
     console.error(err);
     els.loading.hidden = true; els.loadError.hidden = false;
+    revealHero();
     if (!SCRIPT_URL) els.loadErrorHint.textContent = "Encara no has configurat la URL del servidor (SCRIPT_URL a app.js).";
   }
 }
 
 async function fetchConfig() {
   if (!SCRIPT_URL) return structuredClone(DEMO_CONFIG);
-  const res = await fetch(`${SCRIPT_URL}?action=config&form=${encodeURIComponent(FORM_ID)}`, { method: "GET" });
+  const res = await fetch(`${SCRIPT_URL}?action=config&form=${encodeURIComponent(activeFormId)}`, { method: "GET" });
   if (!res.ok) throw new Error("config HTTP " + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -161,6 +186,93 @@ function applySettings(s) {
     link.href = `tel:${CONTACT_PHONE}`;
     link.setAttribute("aria-label", "Trucar al 629 912 840");
   }
+}
+
+// ---- Hero Slider ----
+function initHeroSlider() {
+  const forms = (CONFIG.forms || []).filter(function(f) { return f.habilitado !== false && f.id; });
+  allForms = forms;
+
+  const curId = (CONFIG.form && CONFIG.form.id) || activeFormId;
+  currentFormIdx = Math.max(0, forms.findIndex(function(f) { return f.id === curId; }));
+
+  const estacio = (CONFIG.form && CONFIG.form.estacio)
+    || (forms[currentFormIdx] && forms[currentFormIdx].estacio)
+    || inferSeason(curId);
+  applyHeroTheme(estacio);
+
+  const hero = document.getElementById("hero");
+  const nav  = document.getElementById("hero-nav");
+
+  if (!hero || !nav) return;
+
+  if (forms.length < 2) {
+    nav.hidden = true;
+    hero.classList.remove("has-slider");
+    return;
+  }
+  nav.hidden = false;
+  hero.classList.add("has-slider");
+
+  // Pills amb el nom de cada formulari
+  const SEASON_ICONS = { estiu: "☀", hivern: "❄", primavera: "🌿", tardor: "🍂" };
+  nav.innerHTML = "";
+  forms.forEach(function(f, i) {
+    const season = f.estacio || inferSeason(f.id);
+    const icon = SEASON_ICONS[season] || "";
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "hero-pill" + (i === currentFormIdx ? " is-active" : "");
+    pill.innerHTML = (icon ? "<span class=\"hero-pill__icon\" aria-hidden=\"true\">" + icon + "</span>" : "")
+      + "<span>" + escapeHtml(f.nombre || f.id) + "</span>";
+    pill.setAttribute("aria-pressed", String(i === currentFormIdx));
+    pill.addEventListener("click", function() { switchHeroForm(i); });
+    nav.appendChild(pill);
+  });
+
+  // Swipe tàctil (init once)
+  if (!hero.dataset.swipeInit) {
+    hero.dataset.swipeInit = "1";
+    hero.addEventListener("touchstart", function(e) { heroTouchStartX = e.touches[0].clientX; }, { passive: true });
+    hero.addEventListener("touchend", function(e) {
+      const dx = e.changedTouches[0].clientX - heroTouchStartX;
+      if (Math.abs(dx) < 40) return;
+      switchHeroForm(dx < 0
+        ? (currentFormIdx + 1) % allForms.length
+        : (currentFormIdx - 1 + allForms.length) % allForms.length);
+    }, { passive: true });
+  }
+}
+
+function inferSeason(formId) {
+  const id = String(formId || "").toLowerCase();
+  if (/estiu|verano|summer/.test(id))       return "estiu";
+  if (/hivern|invierno|winter|nadal/.test(id)) return "hivern";
+  if (/primavera|spring/.test(id))           return "primavera";
+  if (/tardor|otono|autumn|fall/.test(id))   return "tardor";
+  return "estiu"; // per defecte
+}
+
+function applyHeroTheme(estacio) {
+  const hero = document.getElementById("hero");
+  if (!hero) return;
+  ["estiu", "hivern", "primavera", "tardor"].forEach(function(s) { hero.classList.remove("season-" + s); });
+  const s = String(estacio || "").toLowerCase().trim();
+  if (s) hero.classList.add("season-" + s);
+}
+
+async function switchHeroForm(idx) {
+  if (idx === currentFormIdx || !allForms[idx]) return;
+  currentFormIdx = idx;
+  activeFormId = allForms[idx].id;
+
+  const inner = document.querySelector(".hero__inner");
+  if (inner) inner.classList.add("is-fading");
+  await new Promise(function(r) { setTimeout(r, 220); });
+
+  await load();
+
+  requestAnimationFrame(function() { if (inner) inner.classList.remove("is-fading"); });
 }
 
 // ---- Render ----

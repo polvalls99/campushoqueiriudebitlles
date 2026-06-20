@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inscripcions · Campus</title>
+  <meta name="description" content="Formulari d'inscripció del campus" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top club bar -->
+  <header class="club-bar">
+    <div class="wrap club-bar__inner">
+      <div class="crest" aria-hidden="true">
+        <svg class="crest__svg" viewBox="0 0 28 28">
+          <path d="M21 6 L10 19" fill="none" stroke-width="2.4" stroke-linecap="round" />
+          <path d="M8 20.5 q3.4 1.8 5.4 0.4" fill="none" stroke-width="2.4" stroke-linecap="round" />
+          <circle cx="17.5" cy="21" r="2.2" />
+        </svg>
+      </div>
+      <div class="club-bar__name">
+        <span class="club-bar__camp" data-camp-name>Campus</span>
+        <span class="club-bar__season" data-season>Temporada</span>
+      </div>
+      <a class="club-bar__contact" data-contact-link href="#">Contacte</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="pitch" aria-hidden="true">
+      <span class="pitch__circle"></span>
+      <span class="pitch__spot"></span>
+      <span class="pitch__line pitch__line--mid"></span>
+      <span class="pitch__box"></span>
+    </div>
+    <div class="wrap hero__inner">
+      <p class="eyebrow" data-tagline>Inscripcions obertes</p>
+      <h1 class="hero__title" data-hero-title>Apunta el teu fill al campus</h1>
+      <p class="hero__lead" data-intro>Completa la inscripció en un minut. Tria les setmanes i rep la confirmació al correu.</p>
+    </div>
+  </section>
+
+  <main class="wrap main" id="main">
+    <!-- Returning-user banner -->
+    <div class="returning" id="returning" hidden>
+      <div class="returning__icon" aria-hidden="true">↩</div>
+      <div class="returning__body">
+        <p class="returning__title" id="returning-title">Ja t'havíem vist per aquí</p>
+        <p class="returning__text" id="returning-text"></p>
+        <div class="returning__actions" id="returning-actions"></div>
+      </div>
+      <button class="returning__close" id="returning-close" aria-label="Tancar">✕</button>
+    </div>
+
+    <!-- Loading / error states -->
+    <div class="state" id="loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Carregant el formulari…</p>
+    </div>
+    <div class="state state--error" id="load-error" hidden>
+      <p class="state__title">No s'ha pogut carregar el formulari</p>
+      <p class="state__hint" id="load-error-hint">Comprova la connexió i torna-ho a provar.</p>
+      <button class="btn btn--ghost" id="retry">Tornar a provar</button>
+    </div>
+
+    <div class="state" id="closed" hidden>
+      <div class="closed__mark" aria-hidden="true">⏳</div>
+      <p class="state__title" id="closed-title">Ara mateix no hi ha inscripcions obertes</p>
+      <p class="state__hint" id="closed-text">Torna més endavant per al proper campus.</p>
+    </div>
+
+    <!-- The form -->
+    <form class="form" id="form" hidden novalidate>
+      <div id="form-sections"></div>
+
+      <div class="consent">
+        <label class="check">
+          <input type="checkbox" id="consent" required />
+          <span class="check__box" aria-hidden="true"></span>
+          <span class="check__label" id="consent-text">
+            Com a pare/mare o tutor/a, autoritzo la inscripció i el tractament de les dades.
+          </span>
+        </label>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="btn btn--primary" id="submit-btn">
+          <span class="btn__label" data-submit-text>Confirmar inscripció</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+        <p class="submit-row__note" id="submit-note"></p>
+      </div>
+    </form>
+
+    <!-- Success screen -->
+    <section class="done" id="done" hidden>
+      <div class="done__mark" aria-hidden="true">✓</div>
+      <h2 class="done__title" id="done-title">Inscripció confirmada</h2>
+      <p class="done__text" id="done-text"></p>
+      <div class="done__summary" id="done-summary"></div>
+      <button class="btn btn--ghost" id="another">Inscriure un altre nen/a</button>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p data-camp-name>Campus</p>
+      <p class="foot__small">Inscripció gestionada de forma privada. Les dades només s'utilitzen per organitzar el campus.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

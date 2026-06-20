@@ -39,20 +39,37 @@ Apps Script (Code.gs) ─► Google Sheet (base de dades)
 | setmanes_info | Preu: 1a setmana 80 € · 2a setmana / fam. nombrosa / 2n germà 70 € · jugadors C.P. Riudebitlles 70 € (2a setmana o 2n germà 60 €). |
 | semanas_obligatorias | TRUE |
 | carpeta_fitxers | Inscripcions - fitxers |
+| form_defecto | estiu |
+| setmanes_titulo | Setmanes del casal |
+
+> `form_defecto` = quin formulari es mostra quan s'obre `index.html` sense `?form=`.
+> `setmanes_titulo` = títol de la secció de setmanes/dies (es pot canviar per formulari amb la columna `form`).
 
 ### `Semanas`
 
-| id | etiqueta | fechas | precio | plazas |
-|---|---|---|---|---|
-| S1 | Setmana 1 | 29 juny – 3 juliol | | |
-| S2 | Setmana 2 | 6 – 10 juliol | | |
-| S3 | Setmana 3 | 13 – 17 juliol | | 0 |
-| S4 | Setmana 4 | 20 – 24 juliol | | |
-| S5 | Setmana 5 | 27 – 31 juliol | | |
+Columnes: `id | etiqueta | fechas | precio | plazas | form`. La columna **`form`** diu a
+quin formulari pertany cada fila — així cada casal té el seu propi nombre d'opcions:
+l'estiu 5 setmanes, la primavera 4 dies, l'hivern 1 setmana.
 
-- **plazas = 0** força "Complet" (com la S3 actual). Buit = sense límit i sense comptador.
+| id | etiqueta | fechas | precio | plazas | form |
+|---|---|---|---|---|---|
+| S1 | Setmana 1 | 29 juny – 3 juliol | | | estiu |
+| S2 | Setmana 2 | 6 – 10 juliol | | | estiu |
+| S3 | Setmana 3 | 13 – 17 juliol | | 0 | estiu |
+| S4 | Setmana 4 | 20 – 24 juliol | | | estiu |
+| S5 | Setmana 5 | 27 – 31 juliol | | | estiu |
+| D1 | Dissabte 1 | 11 abril | | | primavera |
+| D2 | Dissabte 2 | 18 abril | | | primavera |
+| D3 | Dissabte 3 | 25 abril | | | primavera |
+| D4 | Dissabte 4 | 2 maig | | | primavera |
+| H1 | Setmana única | 22 – 26 desembre | | | hivern |
+
+- **`form`** = a quin formulari surt la fila. Buit = surt a **tots** els formularis.
+- **plazas = 0** força "Complet" (com la S3). Buit = sense límit i sense comptador.
 - Si poses un número (p. ex. 20), mostra "queden X" i bloqueja quan s'omple.
-- `precio` el deixem buit perquè el preu depèn de setmanes/germans (s'explica a `setmanes_info`).
+- Per a un casal que va per dies, l'`etiqueta` és el dia (p. ex. "Dissabte 1") i a `Ajustes`
+  poses `setmanes_titulo | Tria els dies | primavera` perquè el títol no digui "Setmanes".
+- `precio` el pots deixar buit si el preu s'explica a `setmanes_info`.
 
 ### `Campos`  (les preguntes — ja són les del teu formulari)
 
@@ -81,6 +98,16 @@ Tipus disponibles: `text`, `email`, `tel`, `number`, `date`, `textarea`, `select
 ### `Inscripciones` (automàtica)
 La crea el script. A més de les dades, hi escriu **una columna 1/0 per cada setmana** (S1…S5) i una columna **Edat** calculada de la data de naixement — el mateix que feies a mà a la "Hoja 1". Els fitxers hi queden com a **enllaç** al Drive.
 
+> **Diversos fills en una sola inscripció.** Si un pare/mare apunta més d'un fill, pot
+> prémer **"Afegir un altre fill/a"** al formulari i omplir les dades del tutor una sola
+> vegada. A `Inscripciones` **cada fill queda en una fila pròpia** (amb les seves setmanes i
+> edat), però comparteixen les dades del tutor i l'ID base (`INS-…-1`, `INS-…-2`). Es rep
+> **un sol correu** amb el resum de tots els jugadors/es.
+>
+> El grup de camps que es repeteix per cada fill és el que es diu **"Dades del jugador/a"**
+> (es detecta pel nom: jugador/alumne/fill/nen/infant). Tota la resta de grups (tutor,
+> autoritzacions, documentació, LOPD) són compartits i s'omplen un sol cop.
+
 ---
 
 ## 2. Backend (Apps Script)
@@ -97,7 +124,57 @@ La crea el script. A més de les dades, hi escriu **una columna 1/0 per cada set
 1. A `app.js`, primera línia: `const SCRIPT_URL = "…/exec";` (buit = mode demo).
 2. Puja els fitxers i activa Pages (repo públic).
 
-## 4. Notes
+## 4. Diversos formularis (estiu, primavera, Nadal…)
+
+El sistema serveix **molts formularis amb un sol full i un sol desplegament**. Cada
+formulari té la seva pròpia URL (`?form=...`) i la seva pestanya de respostes.
+
+> De moment **tots els formularis surten idèntics** (comparteixen les mateixes preguntes).
+> Per diferenciar-los, només cal omplir la columna `form` (veure més avall).
+
+### La pestanya `Formularios` (opcional però recomanada)
+
+| id | nombre | habilitado | hoja |
+|---|---|---|---|
+| primavera | Casal de Primavera 2027 | TRUE | |
+| nadal | Casal de Nadal 2026 | FALSE | |
+
+- **id**: el nom curt que va a la URL → `…/index.html?form=primavera`.
+- **nombre**: títol bonic (surt al correu i a la columna `Formulario`).
+- **habilitado**: `FALSE` = el formulari mostra "inscripcions tancades". `TRUE`/buit = obert.
+- **hoja**: deixa-ho buit i el script crea sol la pestanya de respostes `Inscripciones_<id>`.
+
+El **formulari per defecte** (obrir `index.html` sense `?form=`) fa servir les files
+sense `form` i guarda a la pestanya `Inscripciones` de sempre. No cal tocar res perquè
+segueixi funcionant com fins ara.
+
+### La columna `form` a `Ajustes`, `Campos` i `Semanas`
+
+Afegeix una columna **`form`** (al final, el nom exacte) a aquestes tres pestanyes:
+
+- **Fila amb `form` buit** → és **compartida** per tots els formularis (el cas actual).
+- **Fila amb `form` = `primavera`** → només apareix (o **sobreescriu**) al formulari primavera.
+
+Exemples del que pots fer després a mà:
+- A `Ajustes`, una fila `hero_titulo | Casal d'Hoquei d'Estiu` (form buit) i una altra
+  `hero_titulo | Casal de Primavera | primavera`: cada formulari mostra el seu títol.
+- A `Semanas`, deixa les setmanes d'estiu amb `form` buit o `estiu`, i afegeix les de
+  primavera amb `form = primavera`.
+- A `Campos`, afegeix una pregunta només per a un formulari posant-hi el seu `form`.
+
+### Com crear un formulari nou (resum per a no-programadors)
+
+1. Afegeix una fila a `Formularios` amb un `id` nou (p. ex. `primavera`) i `habilitado = TRUE`.
+2. A `Semanas`, posa les setmanes/dates noves amb la columna `form = primavera`.
+3. A `Ajustes`, canvia els textos que vulguis amb `form = primavera` (títol, intro, dates…).
+4. Comparteix l'enllaç `…/index.html?form=primavera`.
+
+No cal tornar a desplegar res ni tocar el codi. Les respostes apareixen soles a
+`Inscripciones_primavera`.
+
+---
+
+## 5. Notes
 
 - **Fitxers**: 5 MB/fitxer i 12 MB per enviament (a dalt d'`app.js`: `MAX_FILE_MB`, `MAX_TOTAL_MB`).
 - **Drets d'imatge**: ara és Sí/No (com a la teva exportació). Legalment és més correcte que sigui opcional; deixa'l obligatori només si t'interessa forçar resposta.

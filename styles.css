@@ -9,7 +9,7 @@
   --blue:      #1F5AE0;   /* accent principal / botons */
   --blue-deep: #1543A0;   /* hover */
   --navy:      #0E2A63;   /* text fosc / capçalera */
-  --rink-line: #3B7BF0;   /* línies de la pista sobre fusta */
+  --rink-line: #4F8EFF;   /* línies de la pista */
   --blue-soft: #E5EDFC;   /* fons blau molt clar */
 
   /* Fusta / parquet (només a l'hero) */
@@ -53,17 +53,14 @@ body {
 }
 .topbar__inner { display: flex; align-items: center; gap: 13px; padding-block: 12px; }
 .emblem {
-  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 11px;
-  background: var(--blue); display: grid; place-items: center;
-  box-shadow: 0 4px 12px rgba(31,90,224,.28);
+  width: 42px; height: 42px; flex: 0 0 auto; border-radius: 10px;
+  overflow: hidden; box-shadow: 0 4px 12px rgba(31,90,224,.28);
 }
-.emblem svg { width: 24px; height: 24px; }
-.emblem path { stroke: #fff; }
-.emblem circle { fill: #fff; }
+.emblem img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .topbar__titles { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
 .topbar__camp {
   font-family: "Anton", sans-serif; text-transform: uppercase;
-  letter-spacing: .03em; font-size: 1.1rem; color: var(--navy);
+  letter-spacing: .03em; font-size: .98rem; color: var(--navy);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .topbar__club { font-size: .76rem; color: var(--ink-soft); }
@@ -74,23 +71,20 @@ body {
 }
 .topbar__contact:hover { background: var(--blue-soft); }
 
-/* ---------- Hero (pista de parquet) ---------- */
+/* ---------- Hero (antracita modern) ---------- */
 .hero {
   position: relative; overflow: hidden; color: #fff;
-  background-color: var(--wood-2);
-  background-image:
-    repeating-linear-gradient(90deg, rgba(120,72,28,.22) 0 2px, transparent 2px 94px),
-    repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 8px),
-    linear-gradient(180deg, var(--wood-1), var(--wood-3));
+  background: #0a0f1a;
+  background-image: linear-gradient(135deg, #080c14 0%, #0f1623 55%, #0d1930 100%);
 }
 .hero::before {
   content: ""; position: absolute; inset: 0; z-index: 1;
-  background: linear-gradient(96deg, rgba(11,28,74,.94) 0%, rgba(11,28,74,.66) 42%, rgba(11,28,74,0) 74%);
+  background: radial-gradient(ellipse 55% 90% at 10% 50%, rgba(31,90,224,.15) 0%, transparent 70%);
 }
 .hero__inner { position: relative; z-index: 2; padding-block: 54px 62px; }
 .eyebrow {
   font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .14em;
-  font-size: .82rem; color: #9DC0FF; margin: 0 0 14px;
+  font-size: .82rem; color: var(--rink-line); margin: 0 0 14px;
 }
 .hero__title {
   font-family: "Anton", sans-serif; font-weight: 400; font-size: var(--fs-display);
@@ -103,25 +97,25 @@ body {
 .rink { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .rink__perim {
   position: absolute; top: 50%; right: -90px; transform: translateY(-50%);
-  width: 320px; height: 260px; border: 2.5px solid var(--rink-line);
-  border-radius: 90px; opacity: .9;
+  width: 320px; height: 260px; border: 2px solid var(--rink-line);
+  border-radius: 90px; opacity: .35;
 }
 .rink__mid {
   position: absolute; top: 50%; right: 70px; transform: translateY(-50%);
-  width: 2.5px; height: 256px; background: var(--rink-line); opacity: .9;
+  width: 2px; height: 256px; background: var(--rink-line); opacity: .35;
 }
 .rink__circle {
   position: absolute; top: 50%; right: 70px; transform: translate(50%, -50%);
-  width: 96px; height: 96px; border: 2.5px solid var(--rink-line); border-radius: 50%; opacity: .9;
+  width: 96px; height: 96px; border: 2px solid var(--rink-line); border-radius: 50%; opacity: .35;
 }
 .rink__spot {
   position: absolute; top: 50%; right: 70px; transform: translate(50%, -50%);
-  width: 7px; height: 7px; background: var(--rink-line); border-radius: 50%;
+  width: 6px; height: 6px; background: var(--rink-line); border-radius: 50%; opacity: .5;
 }
 .rink__d {
   position: absolute; top: 50%; right: -90px; transform: translateY(-50%);
-  width: 64px; height: 150px; border: 2.5px solid var(--rink-line);
-  border-right: none; border-radius: 80px 0 0 80px; opacity: .85;
+  width: 64px; height: 150px; border: 2px solid var(--rink-line);
+  border-right: none; border-radius: 80px 0 0 80px; opacity: .3;
 }
 
 /* ---------- Main ---------- */
@@ -230,6 +224,23 @@ body {
 .check input:focus-visible + .check__box { box-shadow: 0 0 0 3px rgba(31,90,224,.25); }
 .check__label { font-size: .9rem; color: var(--ink-soft); }
 .consent { padding: 4px 2px 22px; }
+
+/* ---------- Blocs de jugador/a (diversos fills) ---------- */
+.children { display: flex; flex-direction: column; gap: 16px; }
+.child-block {
+  border: 1.5px solid var(--line-ink); border-radius: var(--radius-sm);
+  padding: 16px 16px 4px; background: var(--paper); position: relative;
+}
+.child-block:first-child { border-top: none; padding-top: 4px; background: transparent; border-left: none; border-right: none; border-bottom: none; }
+.child-block__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.child-block__title { font-weight: 700; color: var(--navy); font-size: .98rem; }
+.child-block__remove {
+  background: none; border: 1px solid var(--line-ink); border-radius: 999px; cursor: pointer;
+  color: var(--ink-soft); font-size: .8rem; font-weight: 600; padding: 5px 11px; line-height: 1; font-family: inherit;
+}
+.child-block__remove:hover { border-color: var(--danger); color: var(--danger); }
+.child-weeks { margin-top: 4px; }
+.add-child { margin-top: 16px; padding: 11px 18px; font-size: .92rem; }
 
 /* ---------- Setmanes ---------- */
 .weeks { display: grid; gap: 10px; }

@@ -6,7 +6,11 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuWJFZKY-JKs54yYAP1RAyJgORL1w-xEGBziVPY_amaQYAw8rxfO5KYPEffW0laUII/exec";
+
+// 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
+// Buit = formulari per defecte (les files del full sense columna "form").
+const FORM_ID = (new URLSearchParams(location.search).get("form") || "").trim();
 
 const STORAGE_KEY = "casal_hoquei_v1";
 const MAX_FILE_MB = 5;
@@ -21,8 +25,8 @@ const T_LOPD = "D'acord amb la normativa de protecció de dades, t'informem que 
 // ---- Config d'exemple (mode demo) ----
 const DEMO_CONFIG = {
   settings: {
-    nombre_campus: "Casal Hoquei Estiu 2026",
-    club: "Club Esportiu E7 · CP Riudebitlles",
+    nombre_campus: "Campus Hoquei Riudebitlles",
+    club: "Sant Pere de Riudebitlles · CP Riudebitlles",
     temporada: "2026",
     lema: "Inscripcions obertes",
     hero_titulo: "Casal d'Hoquei d'Estiu",
@@ -71,6 +75,8 @@ const DEMO_CONFIG = {
 // ---- Estat ----
 let CONFIG = null;
 let currentCampus = null;
+let childCount = 1;            // quants jugadors/es s'estan inscrivint alhora
+let returningDismissed = false; // l'usuari ha tancat la barra "ja t'havíem vist"
 const fileStore = {};
 const els = {};
 
@@ -81,7 +87,7 @@ async function init() {
   els.retry.addEventListener("click", load);
   els.form.addEventListener("submit", onSubmit);
   els.another.addEventListener("click", resetForNew);
-  els.returningClose.addEventListener("click", () => (els.returning.hidden = true));
+  els.returningClose.addEventListener("click", () => { els.returning.hidden = true; returningDismissed = true; });
   await load();
 }
 
@@ -101,6 +107,9 @@ async function load() {
   try {
     CONFIG = await fetchConfig();
     applySettings(CONFIG.settings || {});
+    if (CONFIG.form && CONFIG.form.habilitado === false) {
+      els.loading.hidden = true; els.closed.hidden = false; return;
+    }
     const open = enabledCampuses();
     if (CONFIG.campuses && CONFIG.campuses.length && open.length === 0) {
       els.loading.hidden = true; els.closed.hidden = false; return;
@@ -118,7 +127,7 @@ async function load() {
 
 async function fetchConfig() {
   if (!SCRIPT_URL) return structuredClone(DEMO_CONFIG);
-  const res = await fetch(`${SCRIPT_URL}?action=config`, { method: "GET" });
+  const res = await fetch(`${SCRIPT_URL}?action=config&form=${encodeURIComponent(FORM_ID)}`, { method: "GET" });
   if (!res.ok) throw new Error("config HTTP " + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -145,6 +154,7 @@ function applySettings(s) {
 // ---- Render ----
 function renderForm() {
   els.sections.innerHTML = "";
+  childCount = Math.max(1, childCount || 1);
   let n = 0;
   const open = enabledCampuses();
   if (open.length > 1) { n++; els.sections.appendChild(sectionEl(n, "Tria el casal", [campusPickerEl(open)])); }
@@ -156,22 +166,99 @@ function renderForm() {
     if (!byName[g]) { byName[g] = { name: g, fields: [] }; groups.push(byName[g]); }
     byName[g].fields.push(f);
   }
-  for (const g of groups) { n++; els.sections.appendChild(sectionEl(n, g.name, g.fields.map(fieldEl))); }
-
-  if (weeksForCampus().length || (CONFIG.weeks || []).length) {
+  const childGroup = detectChildGroup(groups);
+  for (const g of groups) {
     n++;
-    const sec = sectionEl(n, "Setmanes del casal", [weeksEl()]);
-    sec.id = "weeks-section";
-    els.sections.appendChild(sec);
+    if (g.name === childGroup) els.sections.appendChild(childrenSectionEl(n, g));
+    else els.sections.appendChild(sectionEl(n, g.name, g.fields.map((f) => fieldEl(f))));
   }
+  // Les setmanes ara són per cada jugador/a (dins de cada bloc), no una secció a part.
 }
-function rerenderWeeks() {
-  const old = document.getElementById("weeks-section");
-  if (!old) return;
-  const num = parseInt(old.querySelector(".section__num").textContent, 10);
-  const fresh = sectionEl(num, "Setmanes del casal", [weeksEl()]);
-  fresh.id = "weeks-section"; old.replaceWith(fresh);
+
+// El grup "per jugador/a" es repeteix per cada fill. Detectem-lo pel nom; si no,
+// agafem el primer grup del formulari.
+function detectChildGroup(groups) {
+  const m = groups.find((g) => /jugador|alumn|fill|nen|infant|nin/i.test(g.name));
+  return m ? m.name : (groups[0] && groups[0].name);
 }
+
+// Secció que conté N blocs de jugador/a + el botó "Afegir un altre fill/a".
+function childrenSectionEl(num, group) {
+  const sec = sectionEl(num, group.name, []);
+  sec.id = "children-section";
+  const info = (CONFIG.settings || {}).setmanes_info;
+  if (info && (weeksForCampus().length)) {
+    const p = document.createElement("p"); p.className = "field__help field__help--above";
+    p.textContent = info; sec.appendChild(p);
+  }
+  const wrap = document.createElement("div"); wrap.className = "children";
+  sec.appendChild(wrap);
+  const add = document.createElement("button");
+  add.type = "button"; add.className = "btn btn--ghost add-child";
+  add.innerHTML = `<span aria-hidden="true">+</span> Afegir un altre fill/a`;
+  add.addEventListener("click", () => addChildBlock(wrap, group));
+  sec.appendChild(add);
+  for (let i = 0; i < childCount; i++) wrap.appendChild(childBlockEl(group, i));
+  renumberChildren(wrap);
+  return sec;
+}
+function childBlockEl(group, i) {
+  const block = document.createElement("div"); block.className = "child-block"; block.dataset.child = String(i);
+  const head = document.createElement("div"); head.className = "child-block__head";
+  head.innerHTML = `<span class="child-block__title"></span>`;
+  const rm = document.createElement("button");
+  rm.type = "button"; rm.className = "child-block__remove"; rm.setAttribute("aria-label", "Treure aquest jugador/a");
+  rm.innerHTML = `✕ Treure`;
+  rm.addEventListener("click", () => removeChildBlock(block));
+  head.appendChild(rm);
+  block.appendChild(head);
+  group.fields.forEach((f) => block.appendChild(fieldEl(f, i)));
+  block.appendChild(childWeeksEl(i));
+  return block;
+}
+function addChildBlock(wrap, group) {
+  const i = wrap.querySelectorAll(".child-block").length;
+  wrap.appendChild(childBlockEl(group, i));
+  childCount = wrap.querySelectorAll(".child-block").length;
+  renumberChildren(wrap);
+  wrap.lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function removeChildBlock(block) {
+  const wrap = block.parentElement;
+  block.remove();
+  // reindexa els blocs restants perquè els noms d'inputs segueixin sent únics
+  [...wrap.querySelectorAll(".child-block")].forEach((b, idx) => reindexChildBlock(b, idx));
+  childCount = wrap.querySelectorAll(".child-block").length || 1;
+  renumberChildren(wrap);
+}
+function reindexChildBlock(block, idx) {
+  block.dataset.child = String(idx);
+  block.querySelectorAll("[data-scope]").forEach((c) => (c.dataset.scope = String(idx)));
+  // refà els noms (radio/checkbox/setmanes) que depenen de l'índex
+  block.querySelectorAll("[data-field]").forEach((c) => {
+    if (!("field" in c.dataset)) return;
+    const nm = `c${idx}__${c.dataset.field}`;
+    c.dataset.name = nm;
+    c.querySelectorAll(`input`).forEach((inp) => { if (inp.name) inp.name = nm; });
+  });
+  block.querySelectorAll('.weeks input[type="checkbox"]').forEach((inp) => (inp.name = `c${idx}__weeks`));
+}
+function renumberChildren(wrap) {
+  const blocks = [...wrap.querySelectorAll(".child-block")];
+  blocks.forEach((b, idx) => {
+    b.querySelector(".child-block__title").textContent = blocks.length > 1 ? `Jugador/a ${idx + 1}` : "Dades del jugador/a";
+    const rm = b.querySelector(".child-block__remove");
+    if (rm) rm.style.display = blocks.length > 1 ? "" : "none";
+  });
+}
+function refreshChildWeeks() {
+  document.querySelectorAll(".child-block").forEach((block) => {
+    const i = Number(block.dataset.child);
+    const old = block.querySelector(".child-weeks");
+    if (old) old.replaceWith(childWeeksEl(i));
+  });
+}
+function weeksTitle() { return ((CONFIG && CONFIG.settings) || {}).setmanes_titulo || "Setmanes del casal"; }
 function sectionEl(num, title, children) {
   const sec = document.createElement("section"); sec.className = "section";
   const head = document.createElement("div"); head.className = "section__head";
@@ -192,14 +279,14 @@ function campusPickerEl(open) {
     card.addEventListener("click", () => {
       currentCampus = c.id;
       wrap.querySelectorAll(".campus-card").forEach((x) => x.classList.toggle("is-selected", x.dataset.campus === c.id));
-      rerenderWeeks();
+      refreshChildWeeks();
     });
     wrap.appendChild(card);
   });
   return wrap;
 }
 
-function fieldEl(f) {
+function fieldEl(f, scope) {
   // nota: bloc de text sense input
   if (f.tipo === "nota") {
     const note = document.createElement("div"); note.className = "field note";
@@ -208,10 +295,17 @@ function fieldEl(f) {
     return note;
   }
 
+  // Quan el camp pertany a un jugador/a concret, l'identifiquem amb un sufix
+  // d'àmbit (scope) perquè els noms d'input (radio/checkbox) i els ids siguin únics.
+  const scoped = scope != null;
+  const sfx = scoped ? `_c${scope}` : "";
+  const nm = scoped ? `c${scope}__${f.id}` : f.id;
+
   const wrap = document.createElement("div");
   wrap.className = "field"; wrap.dataset.id = f.id; wrap.dataset.required = f.obligatorio ? "1" : "";
+  if (scoped) wrap.dataset.scope = String(scope);
 
-  const labId = `f_${f.id}`;
+  const labId = `f_${f.id}${sfx}`;
   const req = f.obligatorio ? ` <span class="field__req">*</span>` : "";
   const label = document.createElement("label");
   label.className = "field__label"; label.setAttribute("for", labId);
@@ -243,7 +337,7 @@ function fieldEl(f) {
         const c = document.createElement("label"); c.className = "choice";
         const input = document.createElement("input");
         input.type = f.tipo === "radio" ? "radio" : "checkbox";
-        input.name = f.id; input.value = o; if (i === 0) input.id = labId;
+        input.name = nm; input.value = o; if (i === 0) input.id = labId;
         const span = document.createElement("span"); span.textContent = o;
         c.append(input, span); control.appendChild(c);
       });
@@ -256,6 +350,8 @@ function fieldEl(f) {
   }
   if (!control.id) control.id = labId;
   control.dataset.field = f.id; control.dataset.type = f.tipo || "text";
+  control.dataset.name = nm;
+  if (scoped) control.dataset.scope = String(scope);
   wrap.appendChild(control);
 
   if (f.ayuda && !choiceLike) {
@@ -314,22 +410,21 @@ function weeksForCampus() {
   if (!all.some((w) => w.campus)) return all;
   return all.filter((w) => w.campus === currentCampus);
 }
-function weeksEl() {
-  const wrap = document.createElement("div"); wrap.className = "field"; wrap.dataset.weeks = "1";
-  const info = (CONFIG.settings || {}).setmanes_info;
-  if (info) { const p = document.createElement("p"); p.className = "field__help field__help--above"; p.textContent = info; wrap.appendChild(p); }
+function childWeeksEl(i) {
+  const wrap = document.createElement("div"); wrap.className = "field child-weeks"; wrap.dataset.weeks = "1"; wrap.dataset.child = String(i);
+  const lab = document.createElement("p"); lab.className = "field__label"; lab.textContent = weeksTitle(); wrap.appendChild(lab);
   const list = document.createElement("div"); list.className = "weeks";
   const weeks = weeksForCampus();
   if (!weeks.length) { const p = document.createElement("p"); p.className = "field__help"; p.textContent = "Aquest casal encara no té setmanes definides."; wrap.appendChild(p); return wrap; }
 
-  weeks.forEach((w, i) => {
+  weeks.forEach((w, idx) => {
     const full = w.plazas_restantes != null && Number(w.plazas_restantes) <= 0;
     const lab = document.createElement("label"); lab.className = "week" + (full ? " is-full" : ""); lab.dataset.week = w.id;
     const input = document.createElement("input");
-    input.type = "checkbox"; input.value = w.id; input.name = "_weeks"; input.disabled = full;
+    input.type = "checkbox"; input.value = w.id; input.name = `c${i}__weeks`; input.disabled = full;
     input.addEventListener("change", () => lab.classList.toggle("is-selected", input.checked));
     const remaining = w.plazas_restantes != null ? (full ? `<span class="week__tag">Complet</span>` : `<span class="week__meta"> · queden ${w.plazas_restantes}</span>`) : "";
-    lab.innerHTML = `<span class="week__num">${i + 1}</span>
+    lab.innerHTML = `<span class="week__num">${idx + 1}</span>
       <span class="week__body"><span class="week__label">${escapeHtml(w.etiqueta)}</span>
       <span class="week__meta">${escapeHtml(w.fechas || "")}</span>${remaining}</span>
       <span class="week__price">${escapeHtml(w.precio || "")}</span>
@@ -343,19 +438,35 @@ function weeksEl() {
 }
 
 // ---- Recollida + validació ----
+// Llegeix el valor d'un control (input/select/choices) dins d'una arrel donada.
+function readControl(c, root) {
+  if (c.dataset.type === "checkbox") return [...root.querySelectorAll(`input[name="${c.dataset.name}"]:checked`)].map((i) => i.value).join(", ");
+  if (c.dataset.type === "radio") { const sel = root.querySelector(`input[name="${c.dataset.name}"]:checked`); return sel ? sel.value : ""; }
+  return c.value.trim();
+}
 function collect() {
-  const data = {};
+  // Camps compartits (tutor, autoritzacions, documentació…): tots els que NO són d'un jugador/a.
+  const shared = {};
   els.sections.querySelectorAll("[data-field]").forEach((c) => {
-    const id = c.dataset.field;
+    if (c.dataset.scope != null && c.dataset.scope !== "") return; // pertany a un fill → s'agafa a sota
     if (c.dataset.type === "file") return;
-    if (c.dataset.type === "checkbox") data[id] = [...els.sections.querySelectorAll(`input[name="${id}"]:checked`)].map((i) => i.value).join(", ");
-    else if (c.dataset.type === "radio") { const sel = els.sections.querySelector(`input[name="${id}"]:checked`); data[id] = sel ? sel.value : ""; }
-    else data[id] = c.value.trim();
+    shared[c.dataset.field] = readControl(c, els.sections);
   });
-  const weeks = [...els.sections.querySelectorAll('input[name="_weeks"]:checked')].map((i) => i.value);
   const files = [];
   Object.keys(fileStore).forEach((fid) => fileStore[fid].forEach((fl) => files.push({ field: fid, name: fl.name, mimeType: fl.mimeType, dataBase64: fl.dataBase64 })));
-  return { data, weeks, files };
+
+  // Un bloc per cada jugador/a: dades pròpies + setmanes pròpies.
+  const children = [];
+  document.querySelectorAll(".child-block").forEach((block) => {
+    const data = {};
+    block.querySelectorAll("[data-field]").forEach((c) => {
+      if (c.dataset.type === "file") return;
+      data[c.dataset.field] = readControl(c, block);
+    });
+    const weeks = [...block.querySelectorAll(".weeks input:checked")].map((i) => i.value);
+    children.push({ data, weeks });
+  });
+  return { shared, children, files };
 }
 function validate() {
   let ok = true, firstBad = null;
@@ -370,11 +481,13 @@ function validate() {
     wrap.classList.toggle("field--invalid", empty);
     if (empty && !firstBad) firstBad = wrap; if (empty) ok = false;
   });
+  // Setmanes obligatòries: cada jugador/a n'ha de tenir almenys una.
   if (CONFIG.settings && CONFIG.settings.semanas_obligatorias && weeksForCampus().length) {
-    const wrap = els.sections.querySelector("[data-weeks]");
-    const none = !wrap.querySelector('input[name="_weeks"]:checked');
-    wrap.classList.toggle("field--invalid", none);
-    if (none && !firstBad) firstBad = wrap; if (none) ok = false;
+    els.sections.querySelectorAll("[data-weeks]").forEach((wrap) => {
+      const none = !wrap.querySelector('input[type="checkbox"]:checked');
+      wrap.classList.toggle("field--invalid", none);
+      if (none && !firstBad) firstBad = wrap; if (none) ok = false;
+    });
   }
   if (firstBad) firstBad.scrollIntoView({ behavior: "smooth", block: "center" });
   return ok;
@@ -386,18 +499,28 @@ async function onSubmit(e) {
   els.submitNote.textContent = ""; els.submitNote.classList.remove("is-error");
   if (!document.getElementById("consent").checked) return flashNote("Cal acceptar la política de protecció de dades.");
   if (!validate()) return flashNote("Revisa els camps marcats.");
-  const { data, weeks, files } = collect();
+  const { shared, children, files } = collect();
   const totalBytes = files.reduce((s, f) => s + f.dataBase64.length * 0.75, 0);
   if (totalBytes > MAX_TOTAL_MB * 1024 * 1024) return flashNote(`Els fitxers sumen massa (màx ${MAX_TOTAL_MB} MB).`);
   const campus = (CONFIG.campuses || []).find((c) => c.id === currentCampus);
-  const weekLabels = weeksForCampus().filter((w) => weeks.includes(w.id)).map((w) => `${w.id} (${w.fechas || w.etiqueta})`);
-  const payload = { campusId: currentCampus || "", campusName: campus ? campus.nombre : "", data, weeks, weekLabels, files, ts: new Date().toISOString() };
+  const all = weeksForCampus();
+  const childrenPayload = children.map((ch) => ({
+    data: ch.data,
+    weeks: ch.weeks,
+    weekLabels: all.filter((w) => ch.weeks.includes(w.id)).map((w) => `${w.id} (${w.fechas || w.etiqueta})`)
+  }));
+  const campusName = campus ? campus.nombre : "";
+  const payload = {
+    form: FORM_ID, formName: (CONFIG.form && CONFIG.form.nombre) || "",
+    campusId: currentCampus || "", campusName,
+    shared, children: childrenPayload, files, ts: new Date().toISOString()
+  };
 
   setLoading(true);
   try {
     const result = await send(payload);
-    saveLocal(data, weekLabels, payload.campusName);
-    showDone(data, weekLabels, payload.campusName, result);
+    saveLocal(shared, childrenPayload, campusName);
+    showDone(shared, childrenPayload, campusName, result);
   } catch (err) { console.error(err); flashNote("No s'ha pogut enviar. Torna-ho a provar en uns segons."); }
   finally { setLoading(false); }
 }
@@ -412,16 +535,20 @@ function setLoading(on) { els.submitBtn.disabled = on; els.submitBtn.classList.t
 function flashNote(msg) { els.submitNote.textContent = msg; els.submitNote.classList.add("is-error"); }
 
 // ---- Èxit ----
-function showDone(data, weekLabels, campusName, result) {
+function showDone(shared, children, campusName, result) {
   els.form.hidden = true; els.returning.hidden = true; els.done.hidden = false;
   const s = CONFIG.settings || {};
   els.doneText.textContent = (s.mensaje_exito || "Inscripció rebuda correctament.") + (result && result.demo ? "  (mode demo: encara no s'ha guardat enlloc)" : "");
   const items = [];
-  const name = data.nom_jugador || pickName(data);
   if (campusName) items.push(["Casal", campusName]);
-  if (name) items.push(["Jugador/a", name]);
-  if (weekLabels.length) items.push(["Setmanes", weekLabels.join(", ")]);
-  const email = findEmail(data);
+  children.forEach((ch, i) => {
+    const name = ch.data.nom_jugador || pickName(ch.data);
+    if (!name && !(ch.weekLabels || []).length) return;
+    const key = children.length > 1 ? `Jugador/a ${i + 1}` : "Jugador/a";
+    const val = [name, (ch.weekLabels || []).join(", ")].filter(Boolean).join(" · ");
+    items.push([key, val]);
+  });
+  const email = findEmail(shared);
   if (email) items.push(["Correu", email]);
   els.doneSummary.innerHTML = "<dl>" + items.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join("") + "</dl>";
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -429,40 +556,70 @@ function showDone(data, weekLabels, campusName, result) {
 function resetForNew() {
   els.done.hidden = true; els.form.hidden = false; els.form.reset();
   Object.keys(fileStore).forEach((k) => (fileStore[k] = []));
+  childCount = 1; returningDismissed = false;
   renderForm(); els.submitNote.textContent = ""; maybeShowReturning();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // ---- localStorage ----
 function loadLocal() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { families: [] }; } catch { return { families: [] }; } }
-function saveLocal(data, weekLabels, campusName) {
-  const store = loadLocal(); const email = findEmail(data), child = data.nom_jugador || pickName(data);
-  const entry = { email, child, data, weekLabels, campusName, ts: Date.now() };
-  store.families = (store.families || []).filter((f) => !(f.email === email && f.child === child));
+function familyLabel(entry) {
+  const names = (entry.children || []).map((ch) => ch.data && (ch.data.nom_jugador || pickName(ch.data))).filter(Boolean);
+  return names.join(" + ") || entry.email || "";
+}
+function saveLocal(shared, children, campusName) {
+  const store = loadLocal();
+  const email = findEmail(shared);
+  const entry = {
+    email, shared, campusName, ts: Date.now(),
+    children: (children || []).map((ch) => ({ data: ch.data, weeks: ch.weeks, weekLabels: ch.weekLabels }))
+  };
+  const label = familyLabel(entry);
+  store.families = (store.families || []).filter((f) => familyLabel(f) !== label || f.email !== email);
   store.families.unshift(entry); store.families = store.families.slice(0, 8);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch {}
 }
 function maybeShowReturning() {
+  if (returningDismissed) { els.returning.hidden = true; return; }
   const store = loadLocal();
-  if (!store.families || !store.families.length) { els.returning.hidden = true; return; }
+  // Només mostrem inscripcions anteriors amb dades útils (nom o correu).
+  const fams = (store.families || []).filter((f) => familyLabel(f));
+  if (!fams.length) { els.returning.hidden = true; return; }
   els.returningActions.innerHTML = "";
-  els.returningText.textContent = store.families.length === 1 ? "Vols recuperar les dades de l'última inscripció?" : "Tria un jugador/a per omplir les dades automàticament:";
-  store.families.forEach((f) => {
+  els.returningText.textContent = fams.length === 1 ? "Vols recuperar les dades de l'última inscripció?" : "Tria una inscripció per omplir les dades automàticament:";
+  fams.forEach((f) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "chip";
-    b.textContent = f.child || f.email || "Inscripció anterior";
-    b.addEventListener("click", () => { prefill(f.data); els.returning.hidden = true; });
+    b.textContent = familyLabel(f) + ((f.children || []).length > 1 ? ` (${f.children.length} fills)` : "");
+    b.addEventListener("click", () => { prefillFamily(f); els.returning.hidden = true; });
     els.returningActions.appendChild(b);
   });
   els.returning.hidden = false;
 }
-function prefill(data) {
-  els.sections.querySelectorAll("[data-field]").forEach((c) => {
+// Omple els controls (no-fitxer) d'una arrel amb les dades d'un objecte.
+function fillControlsIn(root, data, skipScoped) {
+  root.querySelectorAll("[data-field]").forEach((c) => {
+    if (skipScoped && c.dataset.scope != null && c.dataset.scope !== "") return;
     const id = c.dataset.field;
-    if (c.dataset.type === "file" || !(id in data)) return;
+    if (c.dataset.type === "file" || !data || !(id in data)) return;
     const val = data[id];
-    if (c.dataset.type === "checkbox") { const set = new Set(String(val).split(",").map((x) => x.trim())); els.sections.querySelectorAll(`input[name="${id}"]`).forEach((i) => (i.checked = set.has(i.value))); }
-    else if (c.dataset.type === "radio") { els.sections.querySelectorAll(`input[name="${id}"]`).forEach((i) => { i.checked = i.value === val; i.closest(".choice")?.classList.toggle("is-on", i.checked); }); }
+    if (c.dataset.type === "checkbox") { const set = new Set(String(val).split(",").map((x) => x.trim())); root.querySelectorAll(`input[name="${c.dataset.name}"]`).forEach((i) => (i.checked = set.has(i.value))); }
+    else if (c.dataset.type === "radio") { root.querySelectorAll(`input[name="${c.dataset.name}"]`).forEach((i) => { i.checked = i.value === val; i.closest(".choice")?.classList.toggle("is-on", i.checked); }); }
     else c.value = val;
+  });
+}
+function prefillFamily(entry) {
+  // Recrea tants blocs de fill com tingués la inscripció guardada.
+  childCount = Math.max(1, (entry.children || []).length);
+  renderForm();
+  fillControlsIn(els.sections, entry.shared, true); // camps compartits
+  const blocks = [...document.querySelectorAll(".child-block")];
+  (entry.children || []).forEach((ch, i) => {
+    const block = blocks[i]; if (!block) return;
+    fillControlsIn(block, ch.data, false);
+    (ch.weeks || []).forEach((wid) => {
+      const inp = block.querySelector(`.weeks input[value="${wid}"]`);
+      if (inp && !inp.disabled) { inp.checked = true; inp.dispatchEvent(new Event("change")); }
+    });
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

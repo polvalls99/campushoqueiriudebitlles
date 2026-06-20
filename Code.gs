@@ -18,11 +18,15 @@ var SHEETS = {
   campus: "Campus",
   weeks: "Semanas",
   fields: "Campos",
-  subs: "Inscripciones"
+  subs: "Inscripciones",
+  forms: "Formularios"
 };
 
 function doGet(e) {
-  try { return json(buildConfig()); }
+  try {
+    var form = (e && e.parameter && e.parameter.form) ? String(e.parameter.form).trim() : "";
+    return json(buildConfig(form));
+  }
   catch (err) { return json({ error: String(err) }); }
 }
 
@@ -31,18 +35,44 @@ function doPost(e) {
   lock.waitLock(30000);
   try {
     var payload = JSON.parse(e.postData.contents);
-    var data = payload.data || {};
-    var id = "INS-" + new Date().getTime();
+    var form = String(payload.form || "").trim();
+    if (!form) { var g = readSettings(""); form = String(g.form_defecto || "").trim(); }
+    payload.form = form;
+    var baseId = "INS-" + new Date().getTime();
+    var settings = readSettings(form);
 
-    var settings = readSettings();
-    var saved = saveFiles(payload.files, settings, payload, id);
-    var byField = {};
-    saved.forEach(function (s) { (byField[s.field] = byField[s.field] || []).push(s.url); });
-    Object.keys(byField).forEach(function (k) { data[k] = byField[k].join("\n"); });
+    // Normalitza: sempre treballem amb una llista de jugadors/es ("entries").
+    // Format nou  → { shared:{...}, children:[ {data, weeks, weekLabels}, ... ] }
+    // Format antic → { data:{...}, weeks:[...], weekLabels:[...] }  (un sol jugador/a)
+    var shared = payload.shared || {};
+    var entries = (payload.children && payload.children.length)
+      ? payload.children
+      : [{ data: payload.data || {}, weeks: payload.weeks || [], weekLabels: payload.weekLabels || [] }];
 
-    saveRow(id, payload, data);
-    sendConfirmation(settings, payload, data, saved);
-    return json({ ok: true, id: id });
+    // Els fitxers (targeta sanitària…) són compartits: es pugen una sola vegada.
+    var saved = saveFiles(payload.files, settings, payload, baseId);
+    var fileByField = {};
+    saved.forEach(function (s) { (fileByField[s.field] = fileByField[s.field] || []).push(s.url); });
+
+    var rows = [];
+    entries.forEach(function (child, idx) {
+      var data = {};
+      Object.keys(shared).forEach(function (k) { data[k] = shared[k]; });
+      var cd = child.data || {};
+      Object.keys(cd).forEach(function (k) { data[k] = cd[k]; });
+      Object.keys(fileByField).forEach(function (k) { data[k] = fileByField[k].join("\n"); });
+
+      var id = baseId + (entries.length > 1 ? "-" + (idx + 1) : "");
+      var rowPayload = {
+        form: form, formName: payload.formName, campusId: payload.campusId, campusName: payload.campusName,
+        weeks: child.weeks || [], weekLabels: child.weekLabels || []
+      };
+      saveRow(id, rowPayload, data);
+      rows.push({ id: id, data: data, weekLabels: child.weekLabels || [] });
+    });
+
+    sendConfirmation(settings, payload, rows, saved);
+    return json({ ok: true, id: baseId, count: entries.length });
   } catch (err) {
     return json({ ok: false, error: String(err) });
   } finally {
@@ -51,33 +81,79 @@ function doPost(e) {
 }
 
 /* ---------- Config ---------- */
-function buildConfig() {
-  return { settings: readSettings(), campuses: readCampuses(), weeks: readWeeks(), fields: readFields() };
+function buildConfig(form) {
+  form = String(form || "").trim();
+  if (!form) { var g = readSettings(""); form = String(g.form_defecto || "").trim(); }
+  var forms = readForms();
+  var info = { id: form, nombre: "", habilitado: true };
+  forms.forEach(function (f) { if (f.id === form) info = f; });
+  return {
+    settings: readSettings(form),
+    campuses: readCampuses(),
+    weeks: readWeeks(form),
+    fields: readFields(form),
+    form: { id: info.id, nombre: info.nombre, habilitado: info.habilitado },
+    forms: forms.map(function (f) { return { id: f.id, nombre: f.nombre, habilitado: f.habilitado }; })
+  };
 }
-function readSettings() {
-  var out = {};
+// Files amb la columna "form" buida = compartides per tots els formularis.
+// Files amb "form" = NOM s'apliquen (o sobreescriuen) només a aquell formulari.
+function rowForm(r) { return String(r.form || r.Form || "").trim(); }
+function rowMatchesForm(r, form) { var rf = rowForm(r); return !rf || rf === String(form || "").trim(); }
+
+function readSettings(form) {
+  form = String(form || "").trim();
+  var base = {}, over = {};
   readTable(SHEETS.settings).forEach(function (r) {
     var k = String(r.Clave || r.clave || "").trim();
-    if (k) out[k] = coerce(r.Valor != null ? r.Valor : r.valor);
+    if (!k) return;
+    var v = coerce(r.Valor != null ? r.Valor : r.valor);
+    var rf = rowForm(r);
+    if (!rf) base[k] = v;
+    else if (form && rf === form) over[k] = v;
   });
-  return out;
+  Object.keys(over).forEach(function (k) { base[k] = over[k]; });
+  return base;
+}
+function readForms() {
+  return readTable(SHEETS.forms).filter(function (r) { return r.id; }).map(function (r) {
+    var hab = (r.habilitado == null || String(r.habilitado).trim() === "") ? true : truthy(r.habilitado);
+    return { id: String(r.id).trim(), nombre: str(r.nombre), habilitado: hab, hoja: str(r.hoja) };
+  });
+}
+function findForm(id) {
+  id = String(id || "").trim();
+  var forms = readForms();
+  for (var i = 0; i < forms.length; i++) if (forms[i].id === id) return forms[i];
+  return null;
+}
+// Cada formulari guarda les inscripcions a la seva pestanya.
+// Formulari per defecte (buit) → "Inscripciones" (compatible amb el que ja tens).
+function subsSheetName(form) {
+  form = String(form || "").trim();
+  if (!form) return SHEETS.subs;
+  var f = findForm(form);
+  if (f && f.hoja) return f.hoja;
+  return SHEETS.subs + "_" + form.replace(/[^\w\-]+/g, "_");
 }
 function readCampuses() {
   return readTable(SHEETS.campus).filter(function (r) { return r.id; }).map(function (r) {
     return { id: String(r.id).trim(), nombre: str(r.nombre), fechas: str(r.fechas), descripcion: str(r.descripcion), habilitado: truthy(r.habilitado) };
   });
 }
-function readWeeks() {
-  var counts = countWeekRegistrations();
-  return readTable(SHEETS.weeks).filter(function (r) { return r.id; }).map(function (r) {
+function readWeeks(form) {
+  form = String(form || "").trim();
+  var counts = countWeekRegistrations(form);
+  return readTable(SHEETS.weeks).filter(function (r) { return r.id && rowMatchesForm(r, form); }).map(function (r) {
     var plazas = num(r.plazas), used = counts[String(r.id).trim()] || 0;
     var w = { id: String(r.id).trim(), campus: str(r.campus), etiqueta: str(r.etiqueta), fechas: str(r.fechas), precio: str(r.precio) };
     if (plazas != null) { w.plazas = plazas; w.plazas_restantes = Math.max(0, plazas - used); }
     return w;
   });
 }
-function readFields() {
-  return readTable(SHEETS.fields).filter(function (r) { return r.id; }).map(function (r) {
+function readFields(form) {
+  form = String(form || "").trim();
+  return readTable(SHEETS.fields).filter(function (r) { return r.id && rowMatchesForm(r, form); }).map(function (r) {
     return {
       id: String(r.id).trim(), etiqueta: str(r.etiqueta), tipo: str(r.tipo) || "text",
       opciones: str(r.opciones), obligatorio: truthy(r.obligatorio), placeholder: str(r.placeholder),
@@ -112,14 +188,16 @@ function getOrCreateFolder(parent, name) {
    Columnes: Timestamp · ID · [camps no-nota, amb Edat després de la data
    de naixement] · una columna 1/0 per setmana · Setmanes (text) */
 function saveRow(id, payload, data) {
+  var form = String(payload.form || "").trim();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEETS.subs) || ss.insertSheet(SHEETS.subs);
+  var name = subsSheetName(form);
+  var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
 
-  var fields = readFields().filter(function (f) { return f.tipo !== "nota"; });
-  var weeks = readWeeks();
+  var fields = readFields(form).filter(function (f) { return f.tipo !== "nota"; });
+  var weeks = readWeeks(form);
 
   // construeix l'ordre de columnes desitjat
-  var plan = ["Timestamp", "ID"];
+  var plan = ["Timestamp", "ID", "Formulario"];
   fields.forEach(function (f) {
     plan.push(f.id);
     if (/naix/i.test(f.id) || f.tipo === "date") plan.push("Edat");
@@ -147,6 +225,7 @@ function saveRow(id, payload, data) {
   var row = header.map(function (col) {
     if (col === "Timestamp") return new Date();
     if (col === "ID") return id;
+    if (col === "Formulario") return payload.formName || form || "";
     if (col === "Edat") return edat != null ? edat : "";
     if (col === "Setmanes") return (payload.weekLabels || []).join(", ");
     if (selectedIsWeek(col, weeks)) return selected[col] ? 1 : 0;
@@ -176,14 +255,15 @@ function computeAge(v) {
 }
 
 /* ---------- Places ---------- */
-function countWeekRegistrations() {
+function countWeekRegistrations(form) {
+  form = String(form || "").trim();
   var counts = {};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEETS.subs);
+  var sheet = ss.getSheetByName(subsSheetName(form));
   if (!sheet || sheet.getLastRow() < 2) return counts;
   var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   // compta via les columnes 1/0 de cada setmana
-  var weeks = readTable(SHEETS.weeks).filter(function (r) { return r.id; }).map(function (r) { return String(r.id).trim(); });
+  var weeks = readTable(SHEETS.weeks).filter(function (r) { return r.id && rowMatchesForm(r, form); }).map(function (r) { return String(r.id).trim(); });
   if (sheet.getLastRow() < 2) return counts;
   var vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   weeks.forEach(function (wid) {
@@ -197,44 +277,87 @@ function countWeekRegistrations() {
 }
 
 /* ---------- Correu ---------- */
-function sendConfirmation(settings, payload, data, savedFiles) {
-  var to = findEmail(data);
+function sendConfirmation(settings, payload, rows, savedFiles) {
+  rows = rows || [];
+  var to = "";
+  for (var i = 0; i < rows.length && !to; i++) to = findEmail(rows[i].data || {});
   if (!to) return;
   var camp = settings.nombre_campus || "Casal";
   var subject = settings.email_asunto || ("Inscripció rebuda · " + camp);
   var intro = settings.email_intro || "Hem rebut la inscripció. Aquí tens el resum:";
-  var labels = fieldLabels();
+  var labels = fieldLabels(payload.form);
+  var multi = rows.length > 1;
 
-  var rows = "";
-  if (payload.campusName) rows += emailRow("Casal", payload.campusName);
-  Object.keys(data).forEach(function (k) {
-    if (data[k] === "" || data[k] == null) return;
-    var v = String(data[k]).indexOf("http") === 0 ? "(fitxer adjuntat)" : data[k];
-    rows += emailRow(labels[k] || k, v);
+  // Camps que canvien per jugador/a (per saber quins van al bloc compartit i quins al de cada fill).
+  var childGroupName = childGroupForForm(payload.form);
+
+  // Bloc compartit: agafem els valors del primer jugador/a, però només els camps que NO són del grup de jugador.
+  var sharedHtml = "";
+  if (payload.campusName) sharedHtml += emailRow("Casal", payload.campusName);
+  var first = (rows[0] && rows[0].data) || {};
+  var fieldGroup = fieldGroups(payload.form);
+  Object.keys(first).forEach(function (k) {
+    if (fieldGroup[k] === childGroupName) return; // és un camp de jugador/a
+    if (first[k] === "" || first[k] == null) return;
+    var v = String(first[k]).indexOf("http") === 0 ? "(fitxer adjuntat)" : first[k];
+    sharedHtml += emailRow(labels[k] || k, v);
   });
-  if (payload.weekLabels && payload.weekLabels.length) rows += emailRow("Setmanes", payload.weekLabels.join(", "));
-  if (savedFiles && savedFiles.length) rows += emailRow("Documents", savedFiles.length + " fitxer(s) rebut(s)");
+
+  // Un sub-bloc per cada jugador/a amb els seus camps + setmanes.
+  var childrenHtml = "";
+  rows.forEach(function (r, idx) {
+    var d = r.data || {};
+    var inner = "";
+    Object.keys(d).forEach(function (k) {
+      if (fieldGroup[k] !== childGroupName) return;
+      if (d[k] === "" || d[k] == null) return;
+      var v = String(d[k]).indexOf("http") === 0 ? "(fitxer adjuntat)" : d[k];
+      inner += emailRow(labels[k] || k, v);
+    });
+    if (r.weekLabels && r.weekLabels.length) inner += emailRow("Setmanes", r.weekLabels.join(", "));
+    if (!inner) return;
+    var title = multi ? ("Jugador/a " + (idx + 1)) : "Jugador/a";
+    childrenHtml +=
+      "<div style='margin-top:16px'>" +
+        "<div style='font-weight:700;color:#0E2A63;margin-bottom:6px'>" + esc(title) + "</div>" +
+        "<table style='border-collapse:collapse;font-size:14px'>" + inner + "</table>" +
+      "</div>";
+  });
+  if (savedFiles && savedFiles.length) sharedHtml += emailRow("Documents", savedFiles.length + " fitxer(s) rebut(s)");
 
   var html =
     "<div style='font-family:Arial,sans-serif;max-width:520px;color:#16233D'>" +
       "<div style='background:#0E2A63;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0'>" +
         "<div style='font-size:13px;letter-spacing:.1em;color:#9DC0FF;text-transform:uppercase'>" + esc(camp) + "</div>" +
-        "<div style='font-size:20px;font-weight:700;margin-top:4px'>Inscripció rebuda</div>" +
+        "<div style='font-size:20px;font-weight:700;margin-top:4px'>Inscripció rebuda" + (multi ? " (" + rows.length + " jugadors/es)" : "") + "</div>" +
       "</div>" +
       "<div style='border:1px solid #D6DEEC;border-top:none;padding:22px;border-radius:0 0 12px 12px'>" +
         "<p style='margin:0 0 16px'>" + esc(intro) + "</p>" +
-        "<table style='border-collapse:collapse;font-size:14px'>" + rows + "</table>" +
+        "<table style='border-collapse:collapse;font-size:14px'>" + sharedHtml + "</table>" +
+        childrenHtml +
         (settings.email_contacto ? "<p style='margin:20px 0 0;font-size:13px;color:#5A6B86'>Dubtes? Escriu a " + esc(settings.email_contacto) + "</p>" : "") +
       "</div></div>";
 
   MailApp.sendEmail({ to: to, subject: subject, htmlBody: html, name: camp, replyTo: settings.email_contacto || undefined });
 }
+// Mapa id_camp → grup, i nom del grup "per jugador/a" (mateixa detecció que el frontend).
+function fieldGroups(form) {
+  var m = {};
+  readFields(form).forEach(function (f) { m[f.id] = f.grupo || "Inscripció"; });
+  return m;
+}
+function childGroupForForm(form) {
+  var names = [], seen = {};
+  readFields(form).forEach(function (f) { var g = f.grupo || "Inscripció"; if (!seen[g]) { seen[g] = true; names.push(g); } });
+  for (var i = 0; i < names.length; i++) if (/jugador|alumn|fill|nen|infant|nin/i.test(names[i])) return names[i];
+  return names[0] || "";
+}
 function emailRow(k, v) {
   return "<tr><td style='padding:6px 14px 6px 0;color:#5A6B86;vertical-align:top'>" + esc(k) + "</td><td style='padding:6px 0;font-weight:600'>" + esc(v) + "</td></tr>";
 }
-function fieldLabels() {
+function fieldLabels(form) {
   var m = {};
-  readFields().forEach(function (f) { m[f.id] = f.etiqueta || f.id; });
+  readFields(form).forEach(function (f) { m[f.id] = f.etiqueta || f.id; });
   return m;
 }
 
@@ -265,5 +388,10 @@ function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
 function truthy(v) { var s = String(v).trim().toLowerCase(); return s === "true" || s === "sí" || s === "si" || s === "x" || s === "1" || s === "yes"; }
 function coerce(v) { if (typeof v !== "string") return v; var s = v.trim().toLowerCase(); if (s === "true") return true; if (s === "false") return false; return v; }
 function findEmail(data) { if (data.email) return data.email; for (var k in data) if (/email|correu|correo/i.test(k) && /@/.test(String(data[k]))) return data[k]; return ""; }
-function pickChild(payload) { var d = (payload && payload.data) || {}; for (var k in d) if (/nom/i.test(k) && !/tutor|pare|mare/i.test(k)) return d[k]; return ""; }
+function pickChild(payload) {
+  var d = (payload && payload.data) || {};
+  if ((!d || !Object.keys(d).length) && payload && payload.children && payload.children.length) d = payload.children[0].data || {};
+  for (var k in d) if (/nom/i.test(k) && !/tutor|pare|mare/i.test(k)) return d[k];
+  return "";
+}
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }

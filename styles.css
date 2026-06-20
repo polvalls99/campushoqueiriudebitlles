@@ -292,41 +292,40 @@ body {
   padding: 0 20px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-/* Animació de càrrega: cercle de pista que es dibuixa sol */
-.load-rink {
-  width: 72px; height: 72px;
+/* Animació de càrrega: estic d'hoquei patins xutant la pilota */
+.load-shot {
+  width: 96px; height: 78px;
   margin: 0 auto 32px;
   flex-shrink: 0;
 }
-.load-rink svg { display: block; width: 100%; height: 100%; }
-/* circumferència = 2π×24 ≈ 151 */
-.load-rink__trace {
-  stroke: var(--blue);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-dasharray: 151;
-  stroke-dashoffset: 151;
-  transform: rotate(-90deg);
-  transform-origin: 32px 32px;
-  animation: trace-circle 2s ease-in-out infinite;
+.load-shot svg { display: block; width: 100%; height: 100%; }
+.load-shot__stick {
+  stroke: var(--navy);
+  transform-origin: 72px 6px;
+  animation: stick-swing 2s infinite;
 }
-@keyframes trace-circle {
-  0%   { stroke-dashoffset: 151; opacity: 0; }
-  8%   { opacity: 1; }
-  62%  { stroke-dashoffset: 0;   opacity: 1; }
-  80%  { stroke-dashoffset: 0;   opacity: 0; }
-  100% { stroke-dashoffset: 151; opacity: 0; }
+@keyframes stick-swing {
+  0%, 14% {
+    transform: rotate(-10deg);
+    animation-timing-function: cubic-bezier(.12, 0, .05, 1);
+  }
+  30%  { transform: rotate(14deg); }
+  58%  { transform: rotate(14deg); }
+  100% { transform: rotate(-10deg); }
 }
-.load-rink__spot {
+.load-shot__ball {
   fill: var(--blue);
-  transform-origin: 32px 32px;
-  animation: spot-appear 2s ease-in-out infinite;
+  animation: ball-shoot 2s infinite;
 }
-@keyframes spot-appear {
-  0%, 55%  { transform: scale(.5);  opacity: .2; }
-  70%, 78% { transform: scale(1.2); opacity: 1;  }
-  90%      { transform: scale(.5);  opacity: 0;  }
-  100%     { transform: scale(.5);  opacity: 0;  }
+@keyframes ball-shoot {
+  0%, 21% {
+    transform: translate(0, 0);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(.05, .6, .3, 1);
+  }
+  62%    { transform: translate(-58px, 0); opacity: 0; }
+  62.1%  { transform: translate(0, 0);    opacity: 0; }
+  100%   { transform: translate(0, 0);    opacity: 1; }
 }
 .load-camp {
   font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .05em;

@@ -56,10 +56,14 @@
 
     <!-- Estats -->
     <div class="state state--splash" id="loading">
-      <div class="load-rink" aria-hidden="true">
-        <svg viewBox="0 0 64 64" fill="none">
-          <circle cx="32" cy="32" r="24" class="load-rink__trace"/>
-          <circle cx="32" cy="32" r="3.5" class="load-rink__spot"/>
+      <div class="load-shot" aria-hidden="true">
+        <svg viewBox="0 0 96 72" fill="none" style="overflow:visible">
+          <!-- Mànec recte en diagonal, taló en S suau, blade lleugerament alçat al toe -->
+          <g class="load-shot__stick">
+            <path d="M76,8 C59,25 38,48 26,58 S10,64 8,56" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+          </g>
+          <!-- Pilota de roller hockey -->
+          <circle cx="4" cy="58" r="5.5" class="load-shot__ball"/>
         </svg>
       </div>
       <p class="load-camp" data-camp-name>Campus Hoquei Riudebitlles</p>

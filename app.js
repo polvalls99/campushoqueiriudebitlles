@@ -28,7 +28,7 @@ const DEMO_CONFIG = {
   },
   campuses: [
     { id: "estiu", nombre: "Campus d'Estiu", fechas: "Juliol 2026", habilitado: true },
-    { id: "nadal", nombre: "Campus de Nadal", fechas: "Desembre 2026", habilitado: false },
+    { id: "nadal", nombre: "Campus de Nadal", fechas: "Desembre 2026", habilitado: true },
     { id: "setmanasanta", nombre: "Campus de Setmana Santa", fechas: "Abril 2026", habilitado: false }
   ],
   weeks: [

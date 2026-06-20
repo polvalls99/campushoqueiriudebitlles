@@ -215,7 +215,7 @@ function initHeroSlider() {
   hero.classList.add("has-slider");
 
   // Pills amb el nom de cada formulari
-  const SEASON_ICONS = { estiu: "☀", hivern: "❄", primavera: "🌿", tardor: "🍂" };
+  const SEASON_ICONS = { estiu: "☀", hivern: "❄", primavera: "🌿", tardor: "⚡️" };
   nav.innerHTML = "";
   forms.forEach(function(f, i) {
     const season = f.estacio || inferSeason(f.id);

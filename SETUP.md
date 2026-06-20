@@ -25,7 +25,7 @@ Apps Script (Code.gs) ─► Google Sheet (base de dades)
 | Clave | Valor |
 |---|---|
 | nombre_campus | Casal Hoquei Estiu 2026 |
-| club | Club Esportiu E7 · CP Riudebitlles |
+| club | El plaer de jugar! |
 | temporada | 2026 |
 | lema | Inscripcions obertes |
 | hero_titulo | Casal d'Hoquei d'Estiu |

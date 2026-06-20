@@ -6,13 +6,16 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuWJFZKY-JKs54yYAP1RAyJgORL1w-xEGBziVPY_amaQYAw8rxfO5KYPEffW0laUII/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqDbBO6LmUT-NsDz4lMQkl-ZndN6uJ8ekJ3jM8TT2UfTitFGAYhb2nUTekEN4ki9as/exec";
 
 // 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
 // Buit = formulari per defecte (les files del full sense columna "form").
 const FORM_ID = (new URLSearchParams(location.search).get("form") || "").trim();
 
+const CONTACT_PHONE = "+34629912840";
 const STORAGE_KEY = "casal_hoquei_v1";
+const DRAFT_KEY = "casal_hoquei_draft_v1";
+const RETURNING_DISMISSED_KEY = "casal_hoquei_returning_dismissed";
 const MAX_FILE_MB = 5;
 const MAX_TOTAL_MB = 12;
 
@@ -26,7 +29,7 @@ const T_LOPD = "D'acord amb la normativa de protecció de dades, t'informem que 
 const DEMO_CONFIG = {
   settings: {
     nombre_campus: "Campus Hoquei Riudebitlles",
-    club: "Sant Pere de Riudebitlles · CP Riudebitlles",
+    club: "El plaer de jugar!",
     temporada: "2026",
     lema: "Inscripcions obertes",
     hero_titulo: "Casal d'Hoquei d'Estiu",
@@ -77,6 +80,7 @@ let CONFIG = null;
 let currentCampus = null;
 let childCount = 1;            // quants jugadors/es s'estan inscrivint alhora
 let returningDismissed = false; // l'usuari ha tancat la barra "ja t'havíem vist"
+let draftSaveTimer = null;
 const fileStore = {};
 const els = {};
 
@@ -84,10 +88,14 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   cache();
+  hideReturning();
+  returningDismissed = loadReturningDismissed();
   els.retry.addEventListener("click", load);
   els.form.addEventListener("submit", onSubmit);
+  els.form.addEventListener("input", scheduleDraftSave);
+  els.form.addEventListener("change", scheduleDraftSave);
   els.another.addEventListener("click", resetForNew);
-  els.returningClose.addEventListener("click", () => { els.returning.hidden = true; returningDismissed = true; });
+  els.returningClose.addEventListener("click", dismissReturning);
   await load();
 }
 
@@ -104,6 +112,7 @@ function cache() {
 async function load() {
   els.loading.hidden = false; els.loadError.hidden = true; els.closed.hidden = true;
   els.form.hidden = true; els.done.hidden = true;
+  hideReturning();
   try {
     CONFIG = await fetchConfig();
     applySettings(CONFIG.settings || {});
@@ -148,7 +157,10 @@ function applySettings(s) {
   if (s.consentimiento) els.consentText.textContent = s.consentimiento;
   if (s.nombre_campus) document.title = `Inscripcions · ${s.nombre_campus}`;
   const link = document.querySelector("[data-contact-link]");
-  if (link && s.email_contacto) link.href = `mailto:${s.email_contacto}`;
+  if (link) {
+    link.href = `tel:${CONTACT_PHONE}`;
+    link.setAttribute("aria-label", "Trucar al 629 912 840");
+  }
 }
 
 // ---- Render ----
@@ -159,18 +171,21 @@ function renderForm() {
   const open = enabledCampuses();
   if (open.length > 1) { n++; els.sections.appendChild(sectionEl(n, "Tria el casal", [campusPickerEl(open)])); }
 
-  const fields = [...(CONFIG.fields || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  const allFields = [...(CONFIG.fields || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  // Els camps "file" sempre van dins de cada bloc de fill (un per fill), no en secció compartida.
+  const fileFields = allFields.filter((f) => f.tipo === "file");
+  const nonFileFields = allFields.filter((f) => f.tipo !== "file");
+
   const groups = []; const byName = {};
-  for (const f of fields) {
+  for (const f of nonFileFields) {
     const g = f.grupo || "Inscripció";
     if (!byName[g]) { byName[g] = { name: g, fields: [] }; groups.push(byName[g]); }
     byName[g].fields.push(f);
   }
   const childGroup = detectChildGroup(groups);
   for (const g of groups) {
-    n++;
-    if (g.name === childGroup) els.sections.appendChild(childrenSectionEl(n, g));
-    else els.sections.appendChild(sectionEl(n, g.name, g.fields.map((f) => fieldEl(f))));
+    if (g.name === childGroup) { n++; els.sections.appendChild(childrenSectionEl(n, g, fileFields)); }
+    else if (g.fields.length) { n++; els.sections.appendChild(sectionEl(n, g.name, g.fields.map((f) => fieldEl(f)))); }
   }
   // Les setmanes ara són per cada jugador/a (dins de cada bloc), no una secció a part.
 }
@@ -183,26 +198,21 @@ function detectChildGroup(groups) {
 }
 
 // Secció que conté N blocs de jugador/a + el botó "Afegir un altre fill/a".
-function childrenSectionEl(num, group) {
+function childrenSectionEl(num, group, fileFields) {
   const sec = sectionEl(num, group.name, []);
   sec.id = "children-section";
-  const info = (CONFIG.settings || {}).setmanes_info;
-  if (info && (weeksForCampus().length)) {
-    const p = document.createElement("p"); p.className = "field__help field__help--above";
-    p.textContent = info; sec.appendChild(p);
-  }
   const wrap = document.createElement("div"); wrap.className = "children";
   sec.appendChild(wrap);
   const add = document.createElement("button");
   add.type = "button"; add.className = "btn btn--ghost add-child";
   add.innerHTML = `<span aria-hidden="true">+</span> Afegir un altre fill/a`;
-  add.addEventListener("click", () => addChildBlock(wrap, group));
+  add.addEventListener("click", () => addChildBlock(wrap, group, fileFields));
   sec.appendChild(add);
-  for (let i = 0; i < childCount; i++) wrap.appendChild(childBlockEl(group, i));
+  for (let i = 0; i < childCount; i++) wrap.appendChild(childBlockEl(group, i, fileFields));
   renumberChildren(wrap);
   return sec;
 }
-function childBlockEl(group, i) {
+function childBlockEl(group, i, fileFields) {
   const block = document.createElement("div"); block.className = "child-block"; block.dataset.child = String(i);
   const head = document.createElement("div"); head.className = "child-block__head";
   head.innerHTML = `<span class="child-block__title"></span>`;
@@ -213,12 +223,14 @@ function childBlockEl(group, i) {
   head.appendChild(rm);
   block.appendChild(head);
   group.fields.forEach((f) => block.appendChild(fieldEl(f, i)));
+  // Camps de fitxer: un per fill, amb clau de magatzem única (c0__fieldId, c1__fieldId…)
+  if (fileFields && fileFields.length) fileFields.forEach((f) => block.appendChild(fieldEl(f, i)));
   block.appendChild(childWeeksEl(i));
   return block;
 }
-function addChildBlock(wrap, group) {
+function addChildBlock(wrap, group, fileFields) {
   const i = wrap.querySelectorAll(".child-block").length;
-  wrap.appendChild(childBlockEl(group, i));
+  wrap.appendChild(childBlockEl(group, i, fileFields));
   childCount = wrap.querySelectorAll(".child-block").length;
   renumberChildren(wrap);
   wrap.lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -230,6 +242,7 @@ function removeChildBlock(block) {
   [...wrap.querySelectorAll(".child-block")].forEach((b, idx) => reindexChildBlock(b, idx));
   childCount = wrap.querySelectorAll(".child-block").length || 1;
   renumberChildren(wrap);
+  scheduleDraftSave();
 }
 function reindexChildBlock(block, idx) {
   block.dataset.child = String(idx);
@@ -280,6 +293,7 @@ function campusPickerEl(open) {
       currentCampus = c.id;
       wrap.querySelectorAll(".campus-card").forEach((x) => x.classList.toggle("is-selected", x.dataset.campus === c.id));
       refreshChildWeeks();
+      scheduleDraftSave();
     });
     wrap.appendChild(card);
   });
@@ -322,7 +336,7 @@ function fieldEl(f, scope) {
   let control;
   const opts = (f.opciones || "").split("|").map((o) => o.trim()).filter(Boolean);
   switch (f.tipo) {
-    case "file": control = fileControl(f, labId); break;
+    case "file": control = fileControl(f, labId, scope); break;
     case "textarea": control = el("textarea", "textarea"); break;
     case "select":
       control = el("select", "select");
@@ -362,8 +376,10 @@ function fieldEl(f, scope) {
   return wrap;
 }
 
-function fileControl(f, labId) {
-  fileStore[f.id] = fileStore[f.id] || [];
+function fileControl(f, labId, scope) {
+  // Clau única per fill: "c0__targeta_sanitaria", "c1__targeta_sanitaria"…
+  const storeKey = scope != null ? `c${scope}__${f.id}` : f.id;
+  fileStore[storeKey] = fileStore[storeKey] || [];
   const box = document.createElement("div");
   box.className = "filebox-wrap"; box.dataset.field = f.id; box.dataset.type = "file"; box.id = labId;
   const accept = f.opciones || "image/*,application/pdf";
@@ -377,21 +393,21 @@ function fileControl(f, labId) {
 
   const renderChips = () => {
     chips.innerHTML = "";
-    fileStore[f.id].forEach((fl, idx) => {
+    fileStore[storeKey].forEach((fl, idx) => {
       const chip = document.createElement("div"); chip.className = "file-chip";
       const isImg = (fl.mimeType || "").startsWith("image/");
       chip.innerHTML = `${isImg ? `<img class="file-chip__thumb" alt="" src="data:${fl.mimeType};base64,${fl.dataBase64}" />` : `<span class="file-chip__thumb">PDF</span>`}
         <span class="file-chip__name"></span><span class="file-chip__size">${fmtSize(fl.size)}</span>
         <button type="button" class="file-chip__remove" aria-label="Treure">✕</button>`;
       chip.querySelector(".file-chip__name").textContent = fl.name;
-      chip.querySelector(".file-chip__remove").addEventListener("click", () => { fileStore[f.id].splice(idx, 1); renderChips(); });
+      chip.querySelector(".file-chip__remove").addEventListener("click", () => { fileStore[storeKey].splice(idx, 1); renderChips(); });
       chips.appendChild(chip);
     });
   };
   const addFiles = async (list) => {
     for (const file of list) {
       if (file.size > MAX_FILE_MB * 1024 * 1024) { flashNote(`"${file.name}" supera els ${MAX_FILE_MB} MB.`); continue; }
-      try { const dataBase64 = await readFileBase64(file); fileStore[f.id].push({ name: file.name, mimeType: file.type, dataBase64, size: file.size }); renderChips(); }
+      try { const dataBase64 = await readFileBase64(file); fileStore[storeKey].push({ name: file.name, mimeType: file.type, dataBase64, size: file.size }); renderChips(); }
       catch { flashNote(`No s'ha pogut llegir "${file.name}".`); }
     }
     input.value = "";
@@ -410,6 +426,79 @@ function weeksForCampus() {
   if (!all.some((w) => w.campus)) return all;
   return all.filter((w) => w.campus === currentCampus);
 }
+function buildPriceInfoEl(text) {
+  const colonIdx = text.indexOf(':');
+  const title = colonIdx !== -1 ? text.slice(0, colonIdx).trim() : 'Preus';
+  const body  = (colonIdx !== -1 ? text.slice(colonIdx + 1).trim() : text).replace(/\.\s*$/, '');
+
+  // Divideix per comes respectant parèntesis
+  const rawTiers = [];
+  let depth = 0, cur = '';
+  for (const ch of body) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) { rawTiers.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  if (cur.trim()) rawTiers.push(cur.trim());
+
+  function parseTier(t) {
+    const nm = t.match(/\s*\(([^)]+)\)\s*$/);
+    const note = nm ? nm[1].trim() : '';
+    const main = nm ? t.slice(0, nm.index).trim() : t;
+    const pm = main.match(/^(.*?)\s+(\d+)\s*(?:EUR|€)\s*$/i);
+    return pm ? { desc: pm[1].trim(), price: pm[2] + ' €', note } : { desc: main, price: null, note };
+  }
+  function extractPrice(str) {
+    const m = str.match(/(\d+)\s*(?:EUR|€)/i);
+    return m ? m[1] + ' €' : null;
+  }
+
+  const card = document.createElement('div'); card.className = 'price-info';
+  const headerHtml = `<div class="price-info__header">
+    <span class="price-info__icon" aria-hidden="true">€</span>
+    <span class="price-info__title">${escapeHtml(title)}</span>
+  </div>`;
+
+  // Si detectem un tier de Riudebitlles → taula 2×2
+  const rdbIdx = rawTiers.findIndex(t => /riudebitlles/i.test(t));
+  if (rdbIdx !== -1) {
+    const rdbTier = parseTier(rawTiers[rdbIdx]);
+    const generalTiers = rawTiers.filter((_, i) => i !== rdbIdx).map(parseTier);
+    const rdbPrices = [rdbTier.price, extractPrice(rdbTier.note)];
+
+    const rows = generalTiers.map((g, i) => `
+      <tr>
+        <td class="price-table__label">${escapeHtml(g.desc)}</td>
+        <td><span class="price-table__price">${escapeHtml(g.price || '—')}</span></td>
+        <td><span class="price-table__price price-table__price--rdb">${escapeHtml(rdbPrices[i] || '—')}</span></td>
+      </tr>`).join('');
+
+    card.innerHTML = headerHtml + `
+      <table class="price-table">
+        <thead><tr>
+          <th></th>
+          <th>General</th>
+          <th>C.P. Riudebitlles</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } else {
+    // Fallback: llista de tiers
+    card.innerHTML = headerHtml + `
+      <ul class="price-info__tiers">
+        ${rawTiers.map(t => {
+          const { desc, price, note } = parseTier(t);
+          return `<li class="price-tier">
+            <span class="price-tier__desc">${escapeHtml(desc)}${note ? `<span class="price-tier__note">${escapeHtml(note)}</span>` : ''}</span>
+            ${price ? `<span class="price-tier__price">${escapeHtml(price)}</span>` : ''}
+          </li>`;
+        }).join('')}
+      </ul>`;
+  }
+  return card;
+}
+
 function childWeeksEl(i) {
   const wrap = document.createElement("div"); wrap.className = "field child-weeks"; wrap.dataset.weeks = "1"; wrap.dataset.child = String(i);
   const lab = document.createElement("p"); lab.className = "field__label"; lab.textContent = weeksTitle(); wrap.appendChild(lab);
@@ -417,16 +506,23 @@ function childWeeksEl(i) {
   const weeks = weeksForCampus();
   if (!weeks.length) { const p = document.createElement("p"); p.className = "field__help"; p.textContent = "Aquest casal encara no té setmanes definides."; wrap.appendChild(p); return wrap; }
 
+  if (i === 0) {
+    const priceInfo = (CONFIG.settings || {}).setmanes_info;
+    if (priceInfo) wrap.appendChild(buildPriceInfoEl(priceInfo));
+  }
+
   weeks.forEach((w, idx) => {
     const full = w.plazas_restantes != null && Number(w.plazas_restantes) <= 0;
     const lab = document.createElement("label"); lab.className = "week" + (full ? " is-full" : ""); lab.dataset.week = w.id;
     const input = document.createElement("input");
     input.type = "checkbox"; input.value = w.id; input.name = `c${i}__weeks`; input.disabled = full;
     input.addEventListener("change", () => lab.classList.toggle("is-selected", input.checked));
-    const remaining = w.plazas_restantes != null ? (full ? `<span class="week__tag">Complet</span>` : `<span class="week__meta"> · queden ${w.plazas_restantes}</span>`) : "";
+    const placesMeta = (!full && w.plazas_restantes != null) ? ` · queden ${w.plazas_restantes}` : "";
+    const fullTag = full ? `<span class="week__tag">Complet</span>` : "";
     lab.innerHTML = `<span class="week__num">${idx + 1}</span>
       <span class="week__body"><span class="week__label">${escapeHtml(w.etiqueta)}</span>
-      <span class="week__meta">${escapeHtml(w.fechas || "")}</span>${remaining}</span>
+      <span class="week__meta">${escapeHtml(w.fechas || "")}${placesMeta}</span></span>
+      ${fullTag}
       <span class="week__price">${escapeHtml(w.precio || "")}</span>
       <span class="week__check">✓</span>`;
     lab.prepend(input); list.appendChild(lab);
@@ -445,34 +541,45 @@ function readControl(c, root) {
   return c.value.trim();
 }
 function collect() {
-  // Camps compartits (tutor, autoritzacions, documentació…): tots els que NO són d'un jugador/a.
+  // Camps compartits (tutor, autoritzacions…): tots els que NO pertanyen a un bloc de fill.
   const shared = {};
   els.sections.querySelectorAll("[data-field]").forEach((c) => {
-    if (c.dataset.scope != null && c.dataset.scope !== "") return; // pertany a un fill → s'agafa a sota
-    if (c.dataset.type === "file") return;
+    if (c.dataset.scope != null && c.dataset.scope !== "") return; // és d'un fill → s'agafa a sota
+    if (c.dataset.type === "file") return; // fitxers sempre van dins dels blocs de fill
     shared[c.dataset.field] = readControl(c, els.sections);
   });
-  const files = [];
-  Object.keys(fileStore).forEach((fid) => fileStore[fid].forEach((fl) => files.push({ field: fid, name: fl.name, mimeType: fl.mimeType, dataBase64: fl.dataBase64 })));
 
-  // Un bloc per cada jugador/a: dades pròpies + setmanes pròpies.
+  // Un bloc per cada jugador/a: dades pròpies + fitxers propis + setmanes pròpies.
   const children = [];
   document.querySelectorAll(".child-block").forEach((block) => {
+    const blockIdx = Number(block.dataset.child);
     const data = {};
     block.querySelectorAll("[data-field]").forEach((c) => {
       if (c.dataset.type === "file") return;
       data[c.dataset.field] = readControl(c, block);
     });
     const weeks = [...block.querySelectorAll(".weeks input:checked")].map((i) => i.value);
-    children.push({ data, weeks });
+    // Fitxers d'aquest fill concret (clau: c0__fieldId, c1__fieldId…)
+    const files = [];
+    Object.keys(fileStore).forEach((key) => {
+      if (!key.startsWith(`c${blockIdx}__`)) return;
+      const fieldId = key.slice(`c${blockIdx}__`.length);
+      fileStore[key].forEach((fl) => files.push({ field: fieldId, name: fl.name, mimeType: fl.mimeType, dataBase64: fl.dataBase64 }));
+    });
+    children.push({ data, weeks, files });
   });
-  return { shared, children, files };
+  return { shared, children };
 }
 function validate() {
   let ok = true, firstBad = null;
   els.sections.querySelectorAll(".field[data-required='1']").forEach((wrap) => {
     const c = wrap.querySelector("[data-field]"); let empty;
-    if (c.dataset.type === "file") empty = !(fileStore[c.dataset.field] && fileStore[c.dataset.field].length);
+    if (c.dataset.type === "file") {
+      // Usa la clau amb àmbit de fill si és un camp scoped
+      const key = (c.dataset.scope != null && c.dataset.scope !== "")
+        ? `c${c.dataset.scope}__${c.dataset.field}` : c.dataset.field;
+      empty = !(fileStore[key] && fileStore[key].length);
+    }
     else if (c.dataset.type === "checkbox" || c.dataset.type === "radio") empty = !wrap.querySelector("input:checked");
     else {
       empty = !c.value.trim();
@@ -499,21 +606,24 @@ async function onSubmit(e) {
   els.submitNote.textContent = ""; els.submitNote.classList.remove("is-error");
   if (!document.getElementById("consent").checked) return flashNote("Cal acceptar la política de protecció de dades.");
   if (!validate()) return flashNote("Revisa els camps marcats.");
-  const { shared, children, files } = collect();
-  const totalBytes = files.reduce((s, f) => s + f.dataBase64.length * 0.75, 0);
+  const { shared, children } = collect();
+  // Comprova la mida total de tots els fitxers de tots els fills.
+  const totalBytes = children.reduce((sum, ch) =>
+    sum + (ch.files || []).reduce((s, f) => s + f.dataBase64.length * 0.75, 0), 0);
   if (totalBytes > MAX_TOTAL_MB * 1024 * 1024) return flashNote(`Els fitxers sumen massa (màx ${MAX_TOTAL_MB} MB).`);
   const campus = (CONFIG.campuses || []).find((c) => c.id === currentCampus);
   const all = weeksForCampus();
   const childrenPayload = children.map((ch) => ({
     data: ch.data,
     weeks: ch.weeks,
+    files: ch.files || [],
     weekLabels: all.filter((w) => ch.weeks.includes(w.id)).map((w) => `${w.id} (${w.fechas || w.etiqueta})`)
   }));
   const campusName = campus ? campus.nombre : "";
   const payload = {
     form: FORM_ID, formName: (CONFIG.form && CONFIG.form.nombre) || "",
     campusId: currentCampus || "", campusName,
-    shared, children: childrenPayload, files, ts: new Date().toISOString()
+    shared, children: childrenPayload, ts: new Date().toISOString()
   };
 
   setLoading(true);
@@ -556,44 +666,288 @@ function showDone(shared, children, campusName, result) {
 function resetForNew() {
   els.done.hidden = true; els.form.hidden = false; els.form.reset();
   Object.keys(fileStore).forEach((k) => (fileStore[k] = []));
-  childCount = 1; returningDismissed = false;
+  childCount = 1;
+  returningDismissed = false;
+  try { sessionStorage.removeItem(RETURNING_DISMISSED_KEY); } catch {}
   renderForm(); els.submitNote.textContent = ""; maybeShowReturning();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // ---- localStorage ----
-function loadLocal() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { families: [] }; } catch { return { families: [] }; } }
+function loadLocal() {
+  try {
+    const store = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { families: [] };
+    const draft = loadDraft();
+    const families = [...(store.families || [])].filter((entry) => shouldKeepLocalEntry(entry));
+    if (draft && familyLabel(draft)) {
+      const draftKey = familyKey(draft);
+      const duplicate = families.find((f) => familyKey(f) === draftKey);
+      if (!duplicate) families.unshift(draft);
+    }
+    return { families };
+  } catch {
+    const draft = loadDraft();
+    return { families: draft ? [draft] : [] };
+  }
+}
+function loadDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)) || null;
+    return shouldKeepLocalEntry(draft) ? draft : null;
+  }
+  catch { return null; }
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+function currentCampusName() {
+  const campus = (CONFIG && CONFIG.campuses || []).find((c) => c.id === currentCampus);
+  return campus ? campus.nombre : "";
+}
+function buildLocalEntry(shared, children, campusName, source) {
+  const email = findEmail(shared);
+  return {
+    email,
+    shared,
+    campusName,
+    ts: Date.now(),
+    source: source || "saved",
+    children: (children || []).map((ch) => ({ data: ch.data, weeks: ch.weeks, weekLabels: ch.weekLabels || [] }))
+  };
+}
+function scheduleDraftSave() {
+  if (!CONFIG || els.form.hidden) return;
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraftFromForm, 250);
+}
+function saveDraftFromForm() {
+  draftSaveTimer = null;
+  if (!CONFIG || els.form.hidden) return;
+  const { shared, children } = collect();
+  const entry = buildLocalEntry(shared, children, currentCampusName(), "draft");
+  if (!shouldKeepLocalEntry(entry)) { clearDraft(); return; }
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(entry)); } catch {}
+}
+function loadReturningDismissed() {
+  try { return sessionStorage.getItem(RETURNING_DISMISSED_KEY) === "1"; }
+  catch { return false; }
+}
+function dismissReturning(e) {
+  e?.preventDefault?.();
+  e?.stopPropagation?.();
+  returningDismissed = true;
+  try { sessionStorage.setItem(RETURNING_DISMISSED_KEY, "1"); } catch {}
+  hideReturning();
+}
+function childDisplayName(child, idx) {
+  return (child && child.data && (child.data.nom_jugador || pickName(child.data))) || `Jugador/a ${idx + 1}`;
+}
+function familyNames(entry) {
+  return (entry.children || []).map((ch, idx) => childDisplayName(ch, idx)).filter(Boolean);
+}
 function familyLabel(entry) {
-  const names = (entry.children || []).map((ch) => ch.data && (ch.data.nom_jugador || pickName(ch.data))).filter(Boolean);
+  const names = familyNames(entry);
   return names.join(" + ") || entry.email || "";
 }
+function shouldKeepLocalEntry(entry) {
+  if (!entry) return false;
+  if (entry.source === "draft" && !familyIdentityKey(entry)) return false;
+  return !!familyLabel(entry);
+}
+function familyIdentityKey(entry) {
+  const shared = (entry && entry.shared) || {};
+  const nif = firstMatchingValue(shared, [/^nif$/i, /document/i, /dni/i]);
+  if (nif) return `nif:${normalizeKey(nif)}`;
+
+  const email = findEmail(shared) || entry.email;
+  if (email) return `email:${normalizeKey(email)}`;
+
+  const tutor = firstMatchingValue(shared, [/tutor/i, /pare/i, /mare/i, /padre/i, /madre/i]);
+  const phone = firstMatchingValue(shared, [/telefon/i, /telefono/i, /mobil/i, /movil/i, /phone/i]);
+  if (tutor || phone) return `contacte:${normalizeKey(tutor)}|${normalizeKey(phone)}`;
+
+  return "";
+}
+function familyKey(entry) {
+  return familyIdentityKey(entry) || familyLabel(entry).toLowerCase();
+}
+function firstMatchingValue(data, patterns) {
+  if (!data) return "";
+  for (const key of Object.keys(data)) {
+    if (patterns.some((pattern) => pattern.test(key)) && String(data[key] || "").trim()) return String(data[key]).trim();
+  }
+  return "";
+}
+function normalizeKey(v) {
+  return String(v || "").trim().toLowerCase().replace(/\s+/g, "");
+}
 function saveLocal(shared, children, campusName) {
+  const entry = buildLocalEntry(shared, children, campusName, "saved");
+  clearDraft();
   const store = loadLocal();
-  const email = findEmail(shared);
-  const entry = {
-    email, shared, campusName, ts: Date.now(),
-    children: (children || []).map((ch) => ({ data: ch.data, weeks: ch.weeks, weekLabels: ch.weekLabels }))
-  };
-  const label = familyLabel(entry);
-  store.families = (store.families || []).filter((f) => familyLabel(f) !== label || f.email !== email);
+  const key = familyKey(entry);
+  store.families = (store.families || []).filter((f) => familyKey(f) !== key);
   store.families.unshift(entry); store.families = store.families.slice(0, 8);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch {}
 }
 function maybeShowReturning() {
-  if (returningDismissed) { els.returning.hidden = true; return; }
+  if (returningDismissed) { hideReturning(); return; }
   const store = loadLocal();
   // Només mostrem inscripcions anteriors amb dades útils (nom o correu).
-  const fams = (store.families || []).filter((f) => familyLabel(f));
-  if (!fams.length) { els.returning.hidden = true; return; }
+  const fams = mergeFamiliesByKey((store.families || []).filter((f) => familyLabel(f)));
+  if (!fams.length) { hideReturning(); return; }
   els.returningActions.innerHTML = "";
-  els.returningText.textContent = fams.length === 1 ? "Vols recuperar les dades de l'última inscripció?" : "Tria una inscripció per omplir les dades automàticament:";
+  els.returningText.textContent = "Recupera les dades d'un fill concret o de tota la família:";
   fams.forEach((f) => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "chip";
-    b.textContent = familyLabel(f) + ((f.children || []).length > 1 ? ` (${f.children.length} fills)` : "");
-    b.addEventListener("click", () => { prefillFamily(f); els.returning.hidden = true; });
-    els.returningActions.appendChild(b);
+    const group = document.createElement("div"); group.className = "returning-family";
+
+    const actions = document.createElement("div"); actions.className = "returning-family__actions";
+    if ((f.children || []).length > 1) {
+      const allBtn = document.createElement("button");
+      allBtn.type = "button";
+      allBtn.className = "chip chip--all";
+      allBtn.textContent = `Tots dos fills`;
+      if (f.children.length !== 2) allBtn.textContent = `Tots ${f.children.length} fills`;
+      allBtn.addEventListener("click", () => {
+        prefillFamilySelection(f, f.children.map((_, idx) => idx));
+        els.returning.hidden = true;
+      });
+      actions.appendChild(allBtn);
+    }
+
+    (f.children || []).forEach((child, idx) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip chip--with-delete";
+      const nameSpan = document.createElement("span"); nameSpan.textContent = childDisplayName(child, idx);
+      const delSpan = document.createElement("span");
+      delSpan.className = "chip__del";
+      delSpan.setAttribute("aria-label", `Esborrar ${childDisplayName(child, idx)} de la memòria`);
+      delSpan.textContent = "×";
+      delSpan.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removeCachedChild(f, idx);
+      });
+      b.append(nameSpan, delSpan);
+      b.addEventListener("click", () => {
+        prefillFamilySelection(f, [idx]);
+        els.returning.hidden = true;
+      });
+      actions.appendChild(b);
+    });
+
+    group.appendChild(actions);
+    els.returningActions.appendChild(group);
   });
   els.returning.hidden = false;
+  els.returning.style.display = "";
+}
+function mergeFamiliesByKey(families) {
+  const grouped = new Map();
+  (families || []).forEach((entry) => {
+    const key = familyKey(entry);
+    if (!key) return;
+    if (!grouped.has(key)) {
+      grouped.set(key, { ...entry, children: [...(entry.children || [])] });
+      return;
+    }
+    const current = grouped.get(key);
+    const mergedChildren = [...(current.children || [])];
+    (entry.children || []).forEach((child) => mergeChildIntoList(mergedChildren, child));
+    if ((entry.ts || 0) > (current.ts || 0)) {
+      current.shared = entry.shared || current.shared;
+      current.email = entry.email || current.email;
+      current.campusName = entry.campusName || current.campusName;
+      current.ts = entry.ts;
+      current.source = entry.source || current.source;
+    }
+    current.children = mergedChildren;
+  });
+  return [...grouped.values()].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+function mergeChildIntoList(children, child) {
+  const idx = children.findIndex((existing) => sameCachedChild(existing, child));
+  if (idx === -1) {
+    children.push(child);
+    return;
+  }
+  children[idx] = mergeChildRecords(children[idx], child);
+}
+function sameCachedChild(a, b) {
+  const aName = normalizeKey(a && a.data && (a.data.nom_jugador || pickName(a.data)));
+  const bName = normalizeKey(b && b.data && (b.data.nom_jugador || pickName(b.data)));
+  const aBirth = normalizeKey(findChildBirthdate(a && a.data));
+  const bBirth = normalizeKey(findChildBirthdate(b && b.data));
+  if (aName && bName && aName === bName) return !aBirth || !bBirth || aBirth === bBirth;
+  return !!aBirth && aBirth === bBirth;
+}
+function mergeChildRecords(base, incoming) {
+  const mergedData = { ...((base && base.data) || {}) };
+  Object.keys((incoming && incoming.data) || {}).forEach((key) => {
+    const next = incoming.data[key];
+    if (next != null && String(next).trim() !== "") mergedData[key] = next;
+  });
+  return {
+    data: mergedData,
+    weeks: ((incoming && incoming.weeks) || (base && base.weeks) || []).slice(),
+    weekLabels: ((incoming && incoming.weekLabels) || (base && base.weekLabels) || []).slice()
+  };
+}
+function childCacheKey(child) {
+  if (!child || !child.data) return "";
+  const name = normalizeKey(child.data.nom_jugador || pickName(child.data));
+  const birth = normalizeKey(findChildBirthdate(child.data));
+  return `${name}|${birth}`;
+}
+function findChildBirthdate(data) {
+  if (!data) return "";
+  for (const key of Object.keys(data)) {
+    if (/naix|nacim|birth/i.test(key) && String(data[key] || "").trim()) return String(data[key]).trim();
+  }
+  return "";
+}
+function hideReturning() {
+  if (!els.returning) return;
+  els.returning.hidden = true;
+  els.returning.setAttribute("hidden", "");
+  els.returning.style.display = "none";
+}
+function removeCachedChild(entry, childIdx) {
+  const key = familyKey(entry);
+  const child = entry && entry.children && entry.children[childIdx];
+  if (!key || !child) return;
+  const rawStore = readRawStore();
+  const matching = (rawStore.families || []).filter((f) => familyKey(f) === key);
+  if (!matching.length) return;
+
+  const merged = mergeFamiliesByKey(matching)[0];
+  if (!merged) return;
+  merged.children = (merged.children || []).filter((_, idx) => idx !== childIdx);
+
+  rawStore.families = (rawStore.families || []).filter((f) => familyKey(f) !== key);
+  if (merged.children.length) {
+    merged.ts = Date.now();
+    rawStore.families.unshift(merged);
+  }
+  rawStore.families = rawStore.families.slice(0, 8);
+  writeRawStore(rawStore);
+
+  const draft = loadDraft();
+  if (draft && familyKey(draft) === key) {
+    draft.children = (draft.children || []).filter((candidate) => !sameCachedChild(candidate, child));
+    if (draft.children.length && shouldKeepLocalEntry(draft)) {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+    } else {
+      clearDraft();
+    }
+  }
+  maybeShowReturning();
+}
+function readRawStore() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { families: [] }; }
+  catch { return { families: [] }; }
+}
+function writeRawStore(store) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store || { families: [] })); } catch {}
 }
 // Omple els controls (no-fitxer) d'una arrel amb les dades d'un objecte.
 function fillControlsIn(root, data, skipScoped) {
@@ -607,13 +961,18 @@ function fillControlsIn(root, data, skipScoped) {
     else c.value = val;
   });
 }
-function prefillFamily(entry) {
-  // Recrea tants blocs de fill com tingués la inscripció guardada.
-  childCount = Math.max(1, (entry.children || []).length);
+function prefillFamilySelection(entry, selectedIdxs) {
+  const selected = (selectedIdxs || [])
+    .map((idx) => entry.children && entry.children[idx])
+    .filter(Boolean);
+  if (!selected.length) return;
+
+  // Recrea tants blocs de fill com s'hagin seleccionat.
+  childCount = Math.max(1, selected.length);
   renderForm();
   fillControlsIn(els.sections, entry.shared, true); // camps compartits
   const blocks = [...document.querySelectorAll(".child-block")];
-  (entry.children || []).forEach((ch, i) => {
+  selected.forEach((ch, i) => {
     const block = blocks[i]; if (!block) return;
     fillControlsIn(block, ch.data, false);
     (ch.weeks || []).forEach((wid) => {

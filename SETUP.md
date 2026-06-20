@@ -1,89 +1,85 @@
-# Campus d'hoquei patins — Guia de muntatge
+# Casal Hoquei — Guia de muntatge
 
 Web estàtica (GitHub Pages) + Google Apps Script + Google Sheets.
-Sense hosting de pagament. Tota la **parametrització es fa des del full de càlcul**:
-preguntes, setmanes, textos i **quins campus estan oberts**.
+Tota la parametrització es fa des del full de càlcul. De moment, **un sol casal (estiu)**;
+l'opció de diversos casals (Nadal, Setmana Santa) amb habilitar/deshabilitar la deixem per a després.
 
 ```
 Navegador (pare/mare)
-   │  GET  ?action=config  → campus oberts, preguntes, setmanes, textos
+   │  GET  ?action=config  → preguntes, setmanes, textos
    │  POST {inscripció + fitxers en base64}
    ▼
 GitHub Pages (index.html, styles.css, app.js)
    ▼
 Apps Script (Code.gs) ─► Google Sheet (base de dades)
-                      ├─► Drive (carpeta amb els fitxers adjunts)
+                      ├─► Drive (carpeta amb la documentació)
                       └─► MailApp (correu de confirmació)
 ```
 
 ---
 
-## 1. El full de càlcul — 5 pestanyes (noms exactes)
+## 1. El full de càlcul — 3 pestanyes (noms exactes)
 
 ### `Ajustes`  (clau · valor)
 
 | Clave | Valor |
 |---|---|
-| nombre_campus | Campus d'Hoquei Patins |
+| nombre_campus | Casal Hoquei Estiu 2026 |
+| club | Club Esportiu E7 · CP Riudebitlles |
 | temporada | 2026 |
 | lema | Inscripcions obertes |
-| hero_titulo | Apunta el teu fill al campus |
-| intro | Tria el campus, les setmanes i adjunta la documentació. |
-| email_contacto | info@elteuclub.cat |
-| email_asunto | Inscripció confirmada · Campus Hoquei |
+| hero_titulo | Casal d'Hoquei d'Estiu |
+| intro | Del 29 de juny al 31 de juliol. Tria les setmanes i adjunta la targeta sanitària. |
+| email_contacto | coordinaciocpriudebitlles@gmail.com |
+| email_asunto | Inscripció rebuda · Casal Hoquei Estiu 2026 |
 | email_intro | Hem rebut la inscripció. Aquí tens el resum: |
-| texto_boton | Confirmar inscripció |
-| mensaje_exito | T'hem enviat un correu amb els detalls. |
-| consentimiento | Com a pare/mare o tutor/a, autoritzo la inscripció i el tractament de dades. |
+| texto_boton | Enviar inscripció |
+| mensaje_exito | T'hem enviat un correu amb el resum. |
+| consentimiento | He llegit i accepto la política de protecció de dades del Club Esportiu E7. |
+| setmanes_info | Preu: 1a setmana 80 € · 2a setmana / fam. nombrosa / 2n germà 70 € · jugadors C.P. Riudebitlles 70 € (2a setmana o 2n germà 60 €). |
 | semanas_obligatorias | TRUE |
 | carpeta_fitxers | Inscripcions - fitxers |
 
-### `Campus`  (un campus per fila)
+### `Semanas`
 
-| id | nombre | habilitado | fechas | descripcion |
+| id | etiqueta | fechas | precio | plazas |
 |---|---|---|---|---|
-| estiu | Campus d'Estiu | TRUE | Juliol 2026 | |
-| nadal | Campus de Nadal | TRUE | Desembre 2026 | |
-| setmanasanta | Campus de Setmana Santa | FALSE | Abril 2026 | |
+| S1 | Setmana 1 | 29 juny – 3 juliol | | |
+| S2 | Setmana 2 | 6 – 10 juliol | | |
+| S3 | Setmana 3 | 13 – 17 juliol | | 0 |
+| S4 | Setmana 4 | 20 – 24 juliol | | |
+| S5 | Setmana 5 | 27 – 31 juliol | | |
 
-- **habilitado**: `TRUE` = apareix a la web · `FALSE` = amagat.
-- Si només n'hi ha **un** d'habilitat, la web no mostra selector (l'agafa directament).
-- Si **cap** està habilitat, la web mostra "ara mateix no hi ha inscripcions obertes".
-- No canviïs un `id` un cop hi hagi inscrits (es perdria el lligam amb les setmanes).
+- **plazas = 0** força "Complet" (com la S3 actual). Buit = sense límit i sense comptador.
+- Si poses un número (p. ex. 20), mostra "queden X" i bloqueja quan s'omple.
+- `precio` el deixem buit perquè el preu depèn de setmanes/germans (s'explica a `setmanes_info`).
 
-### `Semanas`  (setmanes lligades a un campus)
+### `Campos`  (les preguntes — ja són les del teu formulari)
 
-| id | campus | etiqueta | fechas | precio | plazas |
-|---|---|---|---|---|---|
-| e1 | estiu | Setmana 1 | 29 jun – 3 jul | 120 € | 20 |
-| e2 | estiu | Setmana 2 | 6 jul – 10 jul | 120 € | 20 |
-| n1 | nadal | Torn únic | 23 des – 3 gen | 95 € | 24 |
+| id | etiqueta | tipo | opciones | obligatorio | ayuda | grupo | orden |
+|---|---|---|---|---|---|---|---|
+| nom_jugador | Nom i cognoms | text | | TRUE | | Dades del jugador/a | 1 |
+| data_naixement | Data de naixement | date | | TRUE | Exemple: 18/11/2018 | Dades del jugador/a | 2 |
+| sap_nedar | Sap nedar? | radio | Sí\|No | TRUE | | Dades del jugador/a | 3 |
+| nom_tutor | Nom i cognoms del tutor/a | text | | TRUE | | Dades del pare/mare/tutor | 4 |
+| nif | NIF | text | | TRUE | | Dades del pare/mare/tutor | 5 |
+| adreca | Adreça | text | | TRUE | | Dades del pare/mare/tutor | 6 |
+| poblacio | Població | text | | TRUE | | Dades del pare/mare/tutor | 7 |
+| codi_postal | Codi postal | text | | TRUE | | Dades del pare/mare/tutor | 8 |
+| telefon | Telèfon | tel | | TRUE | | Dades del pare/mare/tutor | 9 |
+| email | Email | email | | TRUE | Hi enviarem la confirmació | Dades del pare/mare/tutor | 10 |
+| aut_activitat | Autorització de l'activitat | radio | Sí\|No | TRUE | (text llarg de l'autorització) | Autoritzacions | 11 |
+| aut_vehicle | Autorització de vehicle i cures | radio | Sí\|No | TRUE | (text llarg) | Autoritzacions | 12 |
+| drets_imatge | Drets d'imatge | radio | Sí\|No | TRUE | (text llarg) | Autoritzacions | 13 |
+| targeta_sanitaria | Còpia de la targeta sanitària | file | image/*,application/pdf | FALSE | Foto o PDF; pots saltar-ho si ja l'has enviat | Documentació | 14 |
+| nota_lopd | Protecció de dades | nota | | FALSE | (text LOPD) | Protecció de dades | 15 |
 
-- **campus**: l'`id` del campus al qual pertany la setmana.
-- **plazas**: opcional. Mostra "queden X" i bloqueja quan s'omple. Buit = il·limitat.
+Tipus disponibles: `text`, `email`, `tel`, `number`, `date`, `textarea`, `select`, `radio`, `checkbox`, `file`, **`nota`** (bloc de text sense resposta, per a avisos/autoritzacions/LOPD).
+- `codi_postal` i `telefon` són **text** a propòsit: així no perden el zero inicial ni surten amb ".0".
+- Posa el text llarg de cada autorització i del LOPD a la columna **ayuda** (a `radio` i `file` la mostra a sobre del control).
 
-### `Campos`  (les preguntes)
-
-| id | etiqueta | tipo | opciones | obligatorio | placeholder | ayuda | grupo | orden |
-|---|---|---|---|---|---|---|---|---|
-| nom_nen | Nom del nen/a | text | | TRUE | | | Dades del nen/a | 1 |
-| data_naixement | Data de naixement | date | | TRUE | | | Dades del nen/a | 2 |
-| talla | Talla samarreta | select | 6\|8\|10\|12\|14 | TRUE | | | Dades del nen/a | 3 |
-| targeta_sanitaria | Còpia targeta sanitària | file | image/*,application/pdf | TRUE | | Foto o PDF, màx 5 MB | Documentació | 4 |
-| foto | Foto del nen/a | file | image/* | FALSE | | Opcional | Documentació | 5 |
-| nom_tutor | Nom del tutor/a | text | | TRUE | | | Contacte | 6 |
-| email | Correu electrònic | email | | TRUE | | Hi enviarem la confirmació | Contacte | 7 |
-| telefon | Telèfon | tel | | TRUE | | | Contacte | 8 |
-
-- **tipo**: `text`, `email`, `tel`, `number`, `date`, `textarea`, `select`, `radio`, `checkbox`, **`file`**.
-- **opciones** per a `select/radio/checkbox`: valors separats per `|`.
-  Per a **`file`**: tipus acceptats (ex. `image/*,application/pdf`). Es poden adjuntar **diversos** fitxers.
-- **grupo**: les preguntes amb el mateix grup surten juntes en una secció.
-- ⚠️ El camp de correu ha de tenir `email` al seu `id` (o ser tipus `email`) per a confirmació i prefill.
-
-### `Inscripciones`
-Deixa-la buida. El script crea capçaleres i hi afegeix una fila per inscripció.
-Els camps de tipus `file` guarden els **enllaços** als fitxers del Drive.
+### `Inscripciones` (automàtica)
+La crea el script. A més de les dades, hi escriu **una columna 1/0 per cada setmana** (S1…S5) i una columna **Edat** calculada de la data de naixement — el mateix que feies a mà a la "Hoja 1". Els fitxers hi queden com a **enllaç** al Drive.
 
 ---
 
@@ -91,30 +87,21 @@ Els camps de tipus `file` guarden els **enllaços** als fitxers del Drive.
 
 1. Al full: **Extensions → Apps Script**, enganxa `apps-script/Code.gs`, desa.
 2. **Desplega → Nou desplegament → Aplicació web** · executa com **Jo** · accés **Qualsevol**.
-3. Autoritza permisos — ara també demanarà **Drive** (per guardar fitxers) i **Gmail** (per enviar correu).
+3. Autoritza permisos: **full**, **Drive** (fitxers) i **Gmail** (correu).
 4. Copia la URL `/exec`.
 
-> Els fitxers es guarden al teu Drive, dins `Inscripcions - fitxers / <Campus>`, de forma **privada**.
-> A la Sheet hi queda l'enllaç; només qui té accés al teu Drive el pot obrir.
-
 > Cada canvi de codi: **Gestiona desplegaments → edita → versió nova**.
-
----
 
 ## 3. Frontend (GitHub Pages)
 
 1. A `app.js`, primera línia: `const SCRIPT_URL = "…/exec";` (buit = mode demo).
-2. Puja `index.html`, `styles.css`, `app.js` a GitHub.
-3. **Settings → Pages → Branch main / root → Save**.
+2. Puja els fitxers i activa Pages (repo públic).
 
----
+## 4. Notes
 
-## 4. Límits i notes
-
-- **Fitxers**: màx 5 MB per fitxer i 12 MB per enviament (configurable a dalt d'`app.js`:
-  `MAX_FILE_MB`, `MAX_TOTAL_MB`). Per fotos de mòbil sol n'hi ha prou; si calen més grans, puja els límits amb seny (Apps Script accepta fins ~50 MB per petició).
+- **Fitxers**: 5 MB/fitxer i 12 MB per enviament (a dalt d'`app.js`: `MAX_FILE_MB`, `MAX_TOTAL_MB`).
+- **Drets d'imatge**: ara és Sí/No (com a la teva exportació). Legalment és més correcte que sigui opcional; deixa'l obligatori només si t'interessa forçar resposta.
+- **Diversos casals**: quan ho vulguem, s'afegeix una pestanya `Campus` i una columna `campus` a `Semanas`; el codi ja ho contempla.
 - **Correus**: Gmail ~100/dia, Workspace ~1500/dia.
-- **Prefill de qui torna**: és local al navegador (`localStorage`); els **fitxers no es reomplen** (s'han de tornar a adjuntar, per privadesa).
-- **Dades de menors**: casella de consentiment obligatòria; enllaça una política de privadesa al text `consentimiento` o al peu.
-- **Backup**: Fitxer → Crea una còpia per arxivar una temporada.
+- **Menors**: casella de consentiment obligatòria; el text LOPD és a la nota. Revisa que el text legal sigui el que vol el club.
 ```

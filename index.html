@@ -1,51 +1,52 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inscripcions · Campus</title>
-  <meta name="description" content="Formulari d'inscripció del campus" />
+  <title>Inscripcions · Casal Hoquei</title>
+  <meta name="description" content="Formulari d'inscripció del casal d'hoquei" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Top club bar -->
-  <header class="club-bar">
-    <div class="wrap club-bar__inner">
-      <div class="crest" aria-hidden="true">
-        <svg class="crest__svg" viewBox="0 0 28 28">
-          <path d="M21 6 L10 19" fill="none" stroke-width="2.4" stroke-linecap="round" />
-          <path d="M8 20.5 q3.4 1.8 5.4 0.4" fill="none" stroke-width="2.4" stroke-linecap="round" />
-          <circle cx="17.5" cy="21" r="2.2" />
+  <!-- Capçalera -->
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <span class="emblem" aria-hidden="true">
+        <svg viewBox="0 0 28 28">
+          <path d="M20.5 6.5 L10 19.5" fill="none" stroke-width="2.6" stroke-linecap="round" />
+          <path d="M7.7 21 q3.6 1.9 5.8 0.3" fill="none" stroke-width="2.6" stroke-linecap="round" />
+          <circle cx="17.8" cy="21.2" r="2.3" />
         </svg>
-      </div>
-      <div class="club-bar__name">
-        <span class="club-bar__camp" data-camp-name>Campus</span>
-        <span class="club-bar__season" data-season>Temporada</span>
-      </div>
-      <a class="club-bar__contact" data-contact-link href="#">Contacte</a>
+      </span>
+      <span class="topbar__titles">
+        <span class="topbar__camp" data-camp-name>Casal Hoquei</span>
+        <span class="topbar__club" data-club>Club</span>
+      </span>
+      <a class="topbar__contact" data-contact-link href="#">Contacte</a>
     </div>
   </header>
 
-  <!-- Hero -->
+  <!-- Hero amb pista d'hoquei -->
   <section class="hero">
-    <div class="pitch" aria-hidden="true">
-      <span class="pitch__circle"></span>
-      <span class="pitch__spot"></span>
-      <span class="pitch__line pitch__line--mid"></span>
-      <span class="pitch__box"></span>
+    <div class="rink" aria-hidden="true">
+      <span class="rink__perim"></span>
+      <span class="rink__mid"></span>
+      <span class="rink__circle"></span>
+      <span class="rink__spot"></span>
+      <span class="rink__d"></span>
     </div>
     <div class="wrap hero__inner">
-      <p class="eyebrow" data-tagline>Inscripcions obertes</p>
-      <h1 class="hero__title" data-hero-title>Apunta el teu fill al campus</h1>
-      <p class="hero__lead" data-intro>Completa la inscripció en un minut. Tria les setmanes i rep la confirmació al correu.</p>
+      <p class="eyebrow"><span data-tagline>Inscripcions obertes</span> · <span data-season>2026</span></p>
+      <h1 class="hero__title" data-hero-title>Casal d'Hoquei d'Estiu</h1>
+      <p class="hero__lead" data-intro>Completa la inscripció, tria les setmanes i rep la confirmació al correu.</p>
     </div>
   </section>
 
   <main class="wrap main" id="main">
-    <!-- Returning-user banner -->
+    <!-- Barra de "ja t'havíem vist" -->
     <div class="returning" id="returning" hidden>
       <div class="returning__icon" aria-hidden="true">↩</div>
       <div class="returning__body">
@@ -56,7 +57,7 @@
       <button class="returning__close" id="returning-close" aria-label="Tancar">✕</button>
     </div>
 
-    <!-- Loading / error states -->
+    <!-- Estats -->
     <div class="state" id="loading">
       <div class="spinner" aria-hidden="true"></div>
       <p>Carregant el formulari…</p>
@@ -66,14 +67,13 @@
       <p class="state__hint" id="load-error-hint">Comprova la connexió i torna-ho a provar.</p>
       <button class="btn btn--ghost" id="retry">Tornar a provar</button>
     </div>
-
     <div class="state" id="closed" hidden>
       <div class="closed__mark" aria-hidden="true">⏳</div>
       <p class="state__title" id="closed-title">Ara mateix no hi ha inscripcions obertes</p>
-      <p class="state__hint" id="closed-text">Torna més endavant per al proper campus.</p>
+      <p class="state__hint" id="closed-text">Torna més endavant per al proper casal.</p>
     </div>
 
-    <!-- The form -->
+    <!-- Formulari -->
     <form class="form" id="form" hidden novalidate>
       <div id="form-sections"></div>
 
@@ -82,34 +82,34 @@
           <input type="checkbox" id="consent" required />
           <span class="check__box" aria-hidden="true"></span>
           <span class="check__label" id="consent-text">
-            Com a pare/mare o tutor/a, autoritzo la inscripció i el tractament de les dades.
+            He llegit i accepto la política de protecció de dades.
           </span>
         </label>
       </div>
 
       <div class="submit-row">
         <button type="submit" class="btn btn--primary" id="submit-btn">
-          <span class="btn__label" data-submit-text>Confirmar inscripció</span>
+          <span class="btn__label" data-submit-text>Enviar inscripció</span>
           <span class="btn__spinner" aria-hidden="true"></span>
         </button>
         <p class="submit-row__note" id="submit-note"></p>
       </div>
     </form>
 
-    <!-- Success screen -->
+    <!-- Pantalla d'èxit -->
     <section class="done" id="done" hidden>
       <div class="done__mark" aria-hidden="true">✓</div>
-      <h2 class="done__title" id="done-title">Inscripció confirmada</h2>
+      <h2 class="done__title" id="done-title">Inscripció enviada</h2>
       <p class="done__text" id="done-text"></p>
       <div class="done__summary" id="done-summary"></div>
-      <button class="btn btn--ghost" id="another">Inscriure un altre nen/a</button>
+      <button class="btn btn--ghost" id="another">Inscriure un altre jugador/a</button>
     </section>
   </main>
 
   <footer class="foot">
     <div class="wrap">
-      <p data-camp-name>Campus</p>
-      <p class="foot__small">Inscripció gestionada de forma privada. Les dades només s'utilitzen per organitzar el campus.</p>
+      <p data-camp-name>Casal Hoquei</p>
+      <p class="foot__small">Inscripció gestionada de forma privada. Les dades només s'utilitzen per organitzar el casal.</p>
     </div>
   </footer>
 

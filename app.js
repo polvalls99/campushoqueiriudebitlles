@@ -6,7 +6,7 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxq2NV-tqij2p2v6If5jD9e-Nckfb3Dg4nBdgi7sjVkojoaEo0mN_fvajrI4QAEhvs3/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyP7wQ60hNffIQP79nXEbJ_XP3y_kOCNPyzXk8HYpdmn4qIIeoxdECpD_WusZ6Ilf5r/exec";
 
 // 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
 // Buit = formulari per defecte (les files del full sense columna "form").
@@ -40,7 +40,6 @@ const DEMO_CONFIG = {
     texto_boton: "Enviar inscripció",
     mensaje_exito: "T'hem enviat un correu amb el resum. Si has de fer algun canvi, escriu-nos.",
     consentimiento: "He llegit i accepto la política de protecció de dades del Club Esportiu E7.",
-    setmanes_info: "Preu del casal: 1a setmana 80 € · 2a setmana, família nombrosa o 2n germà 70 € · jugadors del C.P. Riudebitlles 70 € (2a setmana o 2n germà 60 €).",
     semanas_obligatorias: true
   },
   campuses: [],  // un sol casal de moment; els campus s'implementaran després
@@ -581,76 +580,52 @@ function weeksForCampus() {
   if (!all.some((w) => w.campus)) return all;
   return all.filter((w) => w.campus === currentCampus);
 }
-function buildPriceInfoEl(text) {
-  const colonIdx = text.indexOf(':');
-  const title = colonIdx !== -1 ? text.slice(0, colonIdx).trim() : 'Preus';
-  const body  = (colonIdx !== -1 ? text.slice(colonIdx + 1).trim() : text).replace(/\.\s*$/, '');
+function buildPriceTableFromConfig() {
+  const refWeek = (CONFIG.weeks || []).find(function(w) { return w.p1 != null; });
+  if (!refWeek) return null;
+  const p1  = refWeek.p1;
+  const p2  = refWeek.p2  != null ? refWeek.p2  : p1;
+  const p1r = refWeek.p1_rdb != null ? refWeek.p1_rdb : p1;
+  const p2r = refWeek.p2_rdb != null ? refWeek.p2_rdb : p2;
 
-  // Divideix per comes respectant parèntesis
-  const rawTiers = [];
-  let depth = 0, cur = '';
-  for (const ch of body) {
-    if (ch === '(') depth++;
-    else if (ch === ')') depth--;
-    if (ch === ',' && depth === 0) { rawTiers.push(cur.trim()); cur = ''; }
-    else cur += ch;
-  }
-  if (cur.trim()) rawTiers.push(cur.trim());
+  const isMulti = (CONFIG.weeks || []).length > 1 && p1 !== p2;
+  const hasRDB   = p1r !== p1 || p2r !== p2;
 
-  function parseTier(t) {
-    const nm = t.match(/\s*\(([^)]+)\)\s*$/);
-    const note = nm ? nm[1].trim() : '';
-    const main = nm ? t.slice(0, nm.index).trim() : t;
-    const pm = main.match(/^(.*?)\s+(\d+)\s*(?:EUR|€)\s*$/i);
-    return pm ? { desc: pm[1].trim(), price: pm[2] + ' €', note } : { desc: main, price: null, note };
-  }
-  function extractPrice(str) {
-    const m = str.match(/(\d+)\s*(?:EUR|€)/i);
-    return m ? m[1] + ' €' : null;
+  // Files de la taula: (label, preu general, preu RDB)
+  const rows = [];
+  rows.push({ label: isMulti ? "1a setmana" : "General", gen: p1, rdb: p1r });
+  if (isMulti) {
+    rows.push({ label: "2a setmana · 2n germà/na · Família nombrosa", gen: p2, rdb: p2r });
+  } else if (p2 !== p1) {
+    rows.push({ label: "Germà/na · família nombrosa",  gen: p2, rdb: p2r });
   }
 
-  const card = document.createElement('div'); card.className = 'price-info';
-  const headerHtml = `<div class="price-info__header">
+  const priceCell = function(val, isRdb) {
+    return `<td><span class="price-table__price${isRdb ? " price-table__price--rdb" : ""}">${val}&thinsp;€</span></td>`;
+  };
+
+  const rowsHtml = rows.map(function(r) {
+    return `<tr>
+      <td class="price-table__label">${escapeHtml(r.label)}</td>
+      ${priceCell(r.gen, false)}
+      ${hasRDB ? priceCell(r.rdb, true) : ""}
+    </tr>`;
+  }).join("");
+
+  const card = document.createElement("div");
+  card.className = "price-info";
+  card.innerHTML = `<div class="price-info__header">
     <span class="price-info__icon" aria-hidden="true">€</span>
-    <span class="price-info__title">${escapeHtml(title)}</span>
-  </div>`;
-
-  // Si detectem un tier de Riudebitlles → taula 2×2
-  const rdbIdx = rawTiers.findIndex(t => /riudebitlles/i.test(t));
-  if (rdbIdx !== -1) {
-    const rdbTier = parseTier(rawTiers[rdbIdx]);
-    const generalTiers = rawTiers.filter((_, i) => i !== rdbIdx).map(parseTier);
-    const rdbPrices = [rdbTier.price, extractPrice(rdbTier.note)];
-
-    const rows = generalTiers.map((g, i) => `
-      <tr>
-        <td class="price-table__label">${escapeHtml(g.desc)}</td>
-        <td><span class="price-table__price">${escapeHtml(g.price || '—')}</span></td>
-        <td><span class="price-table__price price-table__price--rdb">${escapeHtml(rdbPrices[i] || '—')}</span></td>
-      </tr>`).join('');
-
-    card.innerHTML = headerHtml + `
-      <table class="price-table">
-        <thead><tr>
-          <th></th>
-          <th>General</th>
-          <th>C.P. Riudebitlles</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  } else {
-    // Fallback: llista de tiers
-    card.innerHTML = headerHtml + `
-      <ul class="price-info__tiers">
-        ${rawTiers.map(t => {
-          const { desc, price, note } = parseTier(t);
-          return `<li class="price-tier">
-            <span class="price-tier__desc">${escapeHtml(desc)}${note ? `<span class="price-tier__note">${escapeHtml(note)}</span>` : ''}</span>
-            ${price ? `<span class="price-tier__price">${escapeHtml(price)}</span>` : ''}
-          </li>`;
-        }).join('')}
-      </ul>`;
-  }
+    <span class="price-info__title">Preus</span>
+  </div>
+  <table class="price-table">
+    <thead><tr>
+      <th></th>
+      <th>General</th>
+      ${hasRDB ? "<th>C.P. Riudebitlles</th>" : ""}
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
   return card;
 }
 
@@ -662,8 +637,8 @@ function childWeeksEl(i) {
   if (!weeks.length) { const p = document.createElement("p"); p.className = "field__help"; p.textContent = "Aquest casal encara no té setmanes definides."; wrap.appendChild(p); return wrap; }
 
   if (i === 0) {
-    const priceInfo = (CONFIG.settings || {}).setmanes_info;
-    if (priceInfo) wrap.appendChild(buildPriceInfoEl(priceInfo));
+    const priceTableEl = buildPriceTableFromConfig();
+    if (priceTableEl) wrap.appendChild(priceTableEl);
   }
 
   weeks.forEach((w, idx) => {
@@ -678,7 +653,6 @@ function childWeeksEl(i) {
       <span class="week__body"><span class="week__label">${escapeHtml(w.etiqueta)}</span>
       <span class="week__meta">${escapeHtml(w.fechas || "")}${placesMeta}</span></span>
       ${fullTag}
-      <span class="week__price">${escapeHtml(w.precio || "")}</span>
       <span class="week__check">✓</span>`;
     lab.prepend(input); list.appendChild(lab);
   });
@@ -771,13 +745,12 @@ async function onSubmit(e) {
   if (totalBytes > MAX_TOTAL_MB * 1024 * 1024) return flashNote(`Els fitxers sumen massa (màx ${MAX_TOTAL_MB} MB).`);
   const campus = (CONFIG.campuses || []).find((c) => c.id === currentCampus);
   const all = weeksForCampus();
-  const pricesCfg = extractPriceConfig();
   const childrenPayload = children.map((ch, chIdx) => {
     const isRDB = ch.data.is_rdb === "Sí";
     const isFN = ch.data.familia_nombrosa === "Sí";
     let preu = null, descompte = "";
-    if (pricesCfg && ch.weeks.length > 0) {
-      preu = ch.weeks.reduce((sum, _, weekIdx) => sum + calcWeekPrice(chIdx, weekIdx, isRDB, isFN, pricesCfg), 0);
+    if (hasPriceConfig() && ch.weeks.length > 0) {
+      preu = ch.weeks.reduce((sum, weekId, weekIdx) => sum + calcWeekPrice(chIdx, weekIdx, isRDB, isFN, getWeekPrices(weekId)), 0);
       const d = [];
       if (isRDB) d.push("C.P. Riudebitlles");
       if (isFN) d.push("Família nombrosa");
@@ -1232,20 +1205,15 @@ function updateProgress() {
 
 // ---- 2. Preus en temps real ----
 
-// Extreu els 4 preus del text setmanes_info:
-// [general 1a setmana, general 2a+/germà, RDB 1a, RDB 2a+/germà]
-function extractPriceConfig() {
-  const info = ((CONFIG && CONFIG.settings) || {}).setmanes_info || "";
-  const nums = [...info.matchAll(/(\d+)\s*(?:EUR|€)/gi)]
-    .map((m) => parseInt(m[1], 10))
-    .filter((n) => n > 0 && n < 1000);
-  if (nums.length < 2) return null;
-  return {
-    general1: nums[0],
-    general2: nums[1],
-    rdb1: nums[2] != null ? nums[2] : nums[0],
-    rdb2: nums[3] != null ? nums[3] : nums[1]
-  };
+// Retorna { general1, general2, rdb1, rdb2 } per a una setmana concreta llegint p1/p2/p1_rdb/p2_rdb.
+function getWeekPrices(weekId) {
+  const w = (CONFIG.weeks || []).find((wk) => wk.id === weekId);
+  if (!w || w.p1 == null) return null;
+  return { general1: w.p1, general2: w.p2 != null ? w.p2 : w.p1, rdb1: w.p1_rdb != null ? w.p1_rdb : w.p1, rdb2: w.p2_rdb != null ? w.p2_rdb : (w.p2 != null ? w.p2 : w.p1) };
+}
+
+function hasPriceConfig() {
+  return (CONFIG.weeks || []).some((w) => w.p1 != null);
 }
 
 function isChildRDB(childIdx) {
@@ -1325,11 +1293,10 @@ function rdbCheckboxEl(i) {
 
 // Actualitza el display de preu per a un fill concret
 function updateChildPriceDisplay(childIdx) {
-  const prices = extractPriceConfig();
   const block = document.querySelector(`.child-block[data-child="${childIdx}"]`);
   const display = block && block.querySelector(".child-price");
   if (!display) return;
-  if (!prices) { display.hidden = true; return; }
+  if (!hasPriceConfig()) { display.hidden = true; return; }
 
   const isRDB = isChildRDB(childIdx);
   const isFN = isChildFamiliaNombrosa(childIdx);
@@ -1337,7 +1304,7 @@ function updateChildPriceDisplay(childIdx) {
 
   if (!selectedWeeks.length) { display.hidden = true; return; }
 
-  const breakdown = selectedWeeks.map((_, weekIdx) => calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices));
+  const breakdown = selectedWeeks.map((inp, weekIdx) => calcWeekPrice(childIdx, weekIdx, isRDB, isFN, getWeekPrices(inp.value)));
 
   const total = breakdown.reduce((s, p) => s + p, 0);
   display.hidden = false;
@@ -1350,8 +1317,7 @@ function updateChildPriceDisplay(childIdx) {
 function updateTotalPriceCard() {
   const card = document.getElementById("price-total-card");
   if (!card) return;
-  const prices = extractPriceConfig();
-  if (!prices) { card.innerHTML = ""; return; }
+  if (!hasPriceConfig()) { card.innerHTML = ""; return; }
 
   const weekConfig = {};
   (CONFIG.weeks || []).forEach((w) => { weekConfig[w.id] = w; });
@@ -1363,7 +1329,7 @@ function updateTotalPriceCard() {
     const selectedWeeks = [...block.querySelectorAll(".weeks input[type='checkbox']:checked")];
     const weekBreakdown = selectedWeeks.map((inp, weekIdx) => ({
       label: (weekConfig[inp.value] && weekConfig[inp.value].etiqueta) || inp.value,
-      price: calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices)
+      price: calcWeekPrice(childIdx, weekIdx, isRDB, isFN, getWeekPrices(inp.value))
     }));
     const total = weekBreakdown.reduce((s, w) => s + w.price, 0);
     const titleEl = block.querySelector(".child-block__title");

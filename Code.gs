@@ -157,7 +157,15 @@ function readWeeks(form) {
   var counts = countWeekRegistrations(form);
   return readTable(SHEETS.weeks).filter(function (r) { return r.id && rowMatchesForm(r, form); }).map(function (r) {
     var plazas = num(r.plazas), used = counts[String(r.id).trim()] || 0;
-    var w = { id: String(r.id).trim(), campus: str(r.campus), etiqueta: str(r.etiqueta), fechas: str(r.fechas), precio: str(r.precio) };
+    var p1 = num(r.precio), p2 = num(r.precio_dto), p1r = num(r.precio_rdb), p2r = num(r.precio_rdb_dto);
+    var w = {
+      id: String(r.id).trim(), campus: str(r.campus), etiqueta: str(r.etiqueta), fechas: str(r.fechas),
+      precio: str(r.precio),
+      p1: p1,
+      p2: p2 != null ? p2 : p1,
+      p1_rdb: p1r != null ? p1r : p1,
+      p2_rdb: p2r != null ? p2r : (p2 != null ? p2 : p1)
+    };
     if (plazas != null) { w.plazas = plazas; w.plazas_restantes = Math.max(0, plazas - used); }
     return w;
   });

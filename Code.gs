@@ -124,9 +124,12 @@ function readSettings(form) {
   return base;
 }
 function readForms() {
-  return readTable(SHEETS.forms).filter(function (r) { return r.id; }).map(function (r) {
+  return readTable(SHEETS.forms).filter(function (r) {
+    return r.id || r.vs;
+  }).map(function (r) {
+    var id = str(r.id || r.vs);
     var hab = (r.habilitado == null || String(r.habilitado).trim() === "") ? true : truthy(r.habilitado);
-    return { id: String(r.id).trim(), nombre: str(r.nombre), habilitado: hab, hoja: str(r.hoja), estacio: str(r.estacio) };
+    return { id: id, nombre: str(r.nombre), habilitado: hab, hoja: str(r.hoja), estacio: str(r.estacio) };
   });
 }
 function findForm(id) {
@@ -460,7 +463,7 @@ function sendConfirmation(settings, payload, rows) {
       preuBlock =
         "<div style='background:#EEF3FB;border-radius:9px;padding:14px 16px;margin-top:16px'>" +
           "<table style='border-collapse:collapse;width:100%'><tr>" +
-            "<td style='font-weight:700;color:#0E2A63;font-size:14px;vertical-align:middle'>Preu estimat</td>" +
+            "<td style='font-weight:700;color:#0E2A63;font-size:14px;vertical-align:middle'>Preu</td>" +
             "<td style='text-align:right;font-size:22px;font-weight:800;color:#1F5AE0;vertical-align:middle'>" + preu + " €</td>" +
           "</tr>" +
           (descompte ? "<tr><td colspan='2' style='font-size:11px;color:#6B7C99;padding-top:5px'>Descomptes aplicats: " + esc(descompte) + "</td></tr>" : "") +

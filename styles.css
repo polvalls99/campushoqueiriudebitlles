@@ -712,6 +712,9 @@ body {
   .hero__inner { padding-block: 40px 46px; }
   .week__price { font-size: .9rem; }
   .btn--primary { width: 100%; justify-content: center; }
+  /* Col·lapsa el botó de contacte a icona sola per alliberar espai al títol */
+  .topbar__contact { font-size: 0; padding: 9px; gap: 0; }
+  .topbar__contact svg { width: 17px; height: 17px; }
 
   /* Pills del slider: fila única amb scroll horitzontal */
   .hero-nav {

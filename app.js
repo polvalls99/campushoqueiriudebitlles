@@ -6,7 +6,7 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvjLq9YYOZmp0q0_WuQeY61Ep2CVwOLp9mYyU_gIhzF-g8eG_x9K8ft92dC4rfg1w/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxq2NV-tqij2p2v6If5jD9e-Nckfb3Dg4nBdgi7sjVkojoaEo0mN_fvajrI4QAEhvs3/exec";
 
 // 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
 // Buit = formulari per defecte (les files del full sense columna "form").
@@ -178,7 +178,7 @@ function applySettings(s) {
   setText("[data-club]", s.club);
   setText("[data-season]", s.temporada);
   setText("[data-tagline]", s.lema);
-  setText("[data-hero-title]", s.hero_titulo);
+  setText("[data-hero-title]", s.hero_titulo || (CONFIG && CONFIG.form && CONFIG.form.nombre));
   setText("[data-intro]", s.intro);
   setText("[data-submit-text]", s.texto_boton);
   if (s.consentimiento) els.consentText.textContent = s.consentimiento;
@@ -795,7 +795,7 @@ async function onSubmit(e) {
   });
   const campusName = campus ? campus.nombre : "";
   const payload = {
-    form: FORM_ID, formName: (CONFIG.settings && CONFIG.settings.hero_titulo) || (CONFIG.form && CONFIG.form.nombre) || "",
+    form: activeFormId, formName: (CONFIG.form && CONFIG.form.nombre) || (CONFIG.settings && CONFIG.settings.hero_titulo) || activeFormId,
     campusId: currentCampus || "", campusName,
     shared, children: childrenPayload, ts: new Date().toISOString()
   };

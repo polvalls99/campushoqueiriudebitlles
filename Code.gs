@@ -71,7 +71,9 @@ function doPost(e) {
 
       var rowPayload = {
         form: form, formName: payload.formName, campusId: payload.campusId, campusName: payload.campusName,
-        weeks: child.weeks || [], weekLabels: child.weekLabels || []
+        weeks: child.weeks || [], weekLabels: child.weekLabels || [],
+        preu: child.preu != null ? child.preu : null,
+        descompte: child.descompte || ""
       };
       saveRow(id, rowPayload, data);
       rows.push({ id: id, data: data, weekLabels: child.weekLabels || [], savedFiles: saved });
@@ -212,6 +214,8 @@ function saveRow(id, payload, data) {
   });
   weeks.forEach(function (w) { plan.push(w.id); });
   plan.push("Setmanes");
+  plan.push("Preu");
+  plan.push("Descompte");
 
   // capçalera actual; afegeix les columnes que faltin (al final)
   var lastCol = sheet.getLastColumn();
@@ -236,6 +240,8 @@ function saveRow(id, payload, data) {
     if (col === "Formulario") return payload.formName || form || "";
     if (col === "Edat") return edat != null ? edat : "";
     if (col === "Setmanes") return (payload.weekLabels || []).join(", ");
+    if (col === "Preu") return payload.preu != null ? payload.preu : "";
+    if (col === "Descompte") return payload.descompte || "";
     if (selectedIsWeek(col, weeks)) return selected[col] ? 1 : 0;
     var fieldId = fieldIdForColumn(col, fields, labelById);
     if (fieldId && data[fieldId] != null) return data[fieldId];
@@ -367,61 +373,134 @@ function sendConfirmation(settings, payload, rows) {
   }
   for (var i = 0; i < rows.length && !to; i++) to = findEmail(rows[i].data || {});
   if (!to) return;
-  var camp = settings.nombre_campus || "Casal";
-  var subject = settings.email_asunto || ("Inscripció confirmada! 🎉 · " + camp);
-  var intro = settings.email_intro || "Hem rebut la inscripció. Aquí tens el resum:";
-  var labels = fieldLabels(payload.form);
-  var multi = rows.length > 1;
 
-  // Camps que canvien per jugador/a (per saber quins van al bloc compartit i quins al de cada fill).
+  var camp    = settings.nombre_campus || "Casal";
+  var subject = settings.email_asunto  || ("✅ Inscripció confirmada · " + camp);
+  var intro   = settings.email_intro   || "Hem rebut la inscripció correctament. Aquí tens el resum de tot el que ens has enviat:";
+  var labels  = fieldLabels(payload.form);
+  var multi   = rows.length > 1;
   var childGroupName = childGroupForForm(payload.form);
+  var fieldGroup     = fieldGroups(payload.form);
 
-  // Bloc compartit: agafem els valors del primer jugador/a, però només els camps que NO són del grup de jugador.
-  var sharedHtml = "";
-  if (payload.campusName) sharedHtml += emailRow("Casal", payload.campusName);
+  // Camps interns del frontend (no mostrar al correu)
+  function isInternal(k) { return /^is_rdb$|^familia_nombrosa$/.test(k); }
+
+  // ── Bloc compartit (dades del tutor/a) ──────────────────────────────────
+  var sharedRows = "";
+  if (payload.campusName) sharedRows += emailRow("Casal", payload.campusName);
   var first = (rows[0] && rows[0].data) || {};
-  var fieldGroup = fieldGroups(payload.form);
   Object.keys(first).forEach(function (k) {
-    if (fieldGroup[k] === childGroupName) return; // és un camp de jugador/a
+    if (fieldGroup[k] === childGroupName || isInternal(k)) return;
     if (first[k] === "" || first[k] == null) return;
     var v = String(first[k]).indexOf("http") === 0 ? "(fitxer adjuntat)" : first[k];
-    sharedHtml += emailRow(labels[k] || k, v);
+    sharedRows += emailRow(labels[k] || k, v);
   });
+  var sharedBlock = sharedRows
+    ? "<div style='margin:0 0 26px'>" +
+        "<div style='font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#1F5AE0;font-weight:700;padding-bottom:8px;border-bottom:2px solid #EEF3FB;margin-bottom:12px'>Dades del tutor/a</div>" +
+        "<table style='border-collapse:collapse;width:100%;font-size:14px'>" + sharedRows + "</table>" +
+      "</div>"
+    : "";
 
-  // Un sub-bloc per cada jugador/a amb els seus camps + setmanes + fitxers propis.
-  var childrenHtml = "";
-  rows.forEach(function (r, idx) {
+  // ── Blocs per jugador/a ──────────────────────────────────────────────────
+  var childrenBlocks = rows.map(function (r, idx) {
     var d = r.data || {};
-    var inner = "";
+    var childEntry = (payload.children && payload.children[idx]) || {};
+
+    // Nom del jugador/a (per a la capçalera del bloc)
+    var childName = "";
+    for (var k in d) {
+      if (/nom/i.test(k) && !/tutor|pare|mare/i.test(k) && !childName) childName = str(d[k]);
+    }
+
+    // Camps del jugador/a
+    var childRows = "";
     Object.keys(d).forEach(function (k) {
-      if (fieldGroup[k] !== childGroupName) return;
+      if (fieldGroup[k] !== childGroupName || isInternal(k)) return;
       if (d[k] === "" || d[k] == null) return;
       var v = String(d[k]).indexOf("http") === 0 ? "(fitxer adjuntat)" : d[k];
-      inner += emailRow(labels[k] || k, v);
+      childRows += emailRow(labels[k] || k, v);
     });
-    if (r.weekLabels && r.weekLabels.length) inner += emailRow("Setmanes", r.weekLabels.join(", "));
-    if (r.savedFiles && r.savedFiles.length) inner += emailRow("Documents", r.savedFiles.length + " fitxer(s) rebut(s)");
-    if (!inner) return;
-    var title = multi ? ("🏑 Jugador/a " + (idx + 1)) : "🏑 Jugador/a";
-    childrenHtml +=
-      "<div style='margin-top:16px'>" +
-        "<div style='font-weight:700;color:#0E2A63;margin-bottom:6px'>" + esc(title) + "</div>" +
-        "<table style='border-collapse:collapse;font-size:14px'>" + inner + "</table>" +
-      "</div>";
-  });
+
+    // Setmanes com a píndoles
+    var weekPills = "";
+    if (r.weekLabels && r.weekLabels.length) {
+      weekPills = r.weekLabels.map(function (wl) {
+        return "<span style='display:inline-block;background:#1F5AE0;color:#fff;border-radius:999px;" +
+               "padding:4px 13px;font-size:12px;font-weight:700;margin:0 5px 5px 0;letter-spacing:.01em'>" +
+               esc(wl) + "</span>";
+      }).join("");
+    }
+    var weeksBlock = weekPills
+      ? "<div style='margin-top:14px;padding-top:13px;border-top:1px solid #EEF3FB'>" +
+          "<div style='font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9DC0FF;font-weight:700;margin-bottom:8px'>Setmanes</div>" +
+          "<div>" + weekPills + "</div>" +
+        "</div>"
+      : "";
+
+    // Preu + descomptes
+    var preuBlock = "";
+    var preu = childEntry.preu;
+    var descompte = childEntry.descompte && childEntry.descompte !== "-" ? childEntry.descompte : "";
+    if (preu != null && preu > 0) {
+      preuBlock =
+        "<div style='background:#EEF3FB;border-radius:9px;padding:14px 16px;margin-top:16px'>" +
+          "<table style='border-collapse:collapse;width:100%'><tr>" +
+            "<td style='font-weight:700;color:#0E2A63;font-size:14px;vertical-align:middle'>Preu estimat</td>" +
+            "<td style='text-align:right;font-size:22px;font-weight:800;color:#1F5AE0;vertical-align:middle'>" + preu + " €</td>" +
+          "</tr>" +
+          (descompte ? "<tr><td colspan='2' style='font-size:11px;color:#6B7C99;padding-top:5px'>Descomptes aplicats: " + esc(descompte) + "</td></tr>" : "") +
+          "</table>" +
+        "</div>";
+    }
+
+    // Fitxers
+    var filesNote = (r.savedFiles && r.savedFiles.length)
+      ? "<p style='margin:12px 0 0;font-size:13px;color:#6B7C99'>📎 " + r.savedFiles.length + " document(s) rebut(s)</p>"
+      : "";
+
+    var blockTitle = multi
+      ? ("Jugador/a " + (idx + 1) + (childName ? " · " + childName : ""))
+      : (childName || "Jugador/a");
+
+    return "<div style='border:1.5px solid #D6DEEC;border-radius:11px;overflow:hidden;margin-bottom:14px'>" +
+             "<div style='background:#EEF3FB;padding:13px 16px;border-bottom:1px solid #D6DEEC'>" +
+               "<span style='font-size:15px;font-weight:800;color:#0E2A63'>🏑 " + esc(blockTitle) + "</span>" +
+             "</div>" +
+             "<div style='padding:16px 16px 18px'>" +
+               (childRows ? "<table style='border-collapse:collapse;width:100%;font-size:14px'>" + childRows + "</table>" : "") +
+               weeksBlock +
+               preuBlock +
+               filesNote +
+             "</div>" +
+           "</div>";
+  }).join("");
+
+  var badge  = "✓ Rebuda correctament" + (multi ? " &nbsp;·&nbsp; " + rows.length + " jugadors/es" : "");
+  var logoUrl = str(settings.logo_url);
+  var logoHtml = logoUrl
+    ? "<img src='" + logoUrl + "' alt='" + esc(camp) + "' style='height:54px;width:auto;display:block;margin-bottom:16px;border-radius:8px'>"
+    : "";
 
   var html =
-    "<div style='font-family:Arial,sans-serif;max-width:520px;color:#16233D'>" +
-      "<div style='background:#0E2A63;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0'>" +
-        "<div style='font-size:13px;letter-spacing:.1em;color:#9DC0FF;text-transform:uppercase'>" + esc(camp) + "</div>" +
-        "<div style='font-size:20px;font-weight:700;margin-top:4px'>Inscripció rebuda" + (multi ? " (" + rows.length + " jugadors/es)" : "") + "</div>" +
+    "<div style='font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#f0f4fb;padding:20px 10px;color:#16233D'>" +
+
+      // Capçalera
+      "<div style='background:#0E2A63;border-radius:14px 14px 0 0;padding:30px 28px'>" +
+        logoHtml +
+        "<div style='font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9DC0FF;font-weight:700;margin-bottom:10px'>🏑 " + esc(camp) + "</div>" +
+        "<div style='font-size:25px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:18px'>Inscripció confirmada! 🎉</div>" +
+        "<span style='display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 16px;font-size:13px;color:#fff;font-weight:700'>" + badge + "</span>" +
       "</div>" +
-      "<div style='border:1px solid #D6DEEC;border-top:none;padding:22px;border-radius:0 0 12px 12px'>" +
-        "<p style='margin:0 0 16px'>" + esc(intro) + "</p>" +
-        "<table style='border-collapse:collapse;font-size:14px'>" + sharedHtml + "</table>" +
-        childrenHtml +
-        (settings.email_contacto ? "<p style='margin:20px 0 0;font-size:13px;color:#5A6B86'>Dubtes? Escriu a " + esc(settings.email_contacto) + "</p>" : "") +
-      "</div></div>";
+
+      // Cos
+      "<div style='background:#fff;border:1px solid #D6DEEC;border-top:none;border-radius:0 0 14px 14px;padding:28px 28px 24px'>" +
+        "<p style='margin:0 0 24px;color:#4B5C7A;font-size:15px;line-height:1.65'>" + esc(intro) + "</p>" +
+        sharedBlock +
+        childrenBlocks +
+      "</div>" +
+
+    "</div>";
 
   MailApp.sendEmail({ to: to, subject: subject, htmlBody: html, name: camp, replyTo: settings.email_contacto || undefined });
 }
@@ -438,7 +517,10 @@ function childGroupForForm(form) {
   return names[0] || "";
 }
 function emailRow(k, v) {
-  return "<tr><td style='padding:6px 14px 6px 0;color:#5A6B86;vertical-align:top'>" + esc(k) + "</td><td style='padding:6px 0;font-weight:600'>" + esc(v) + "</td></tr>";
+  return "<tr>" +
+    "<td style='padding:7px 16px 7px 0;color:#6B7C99;vertical-align:top;white-space:nowrap;font-size:14px'>" + esc(k) + "</td>" +
+    "<td style='padding:7px 0;font-weight:600;color:#16233D;font-size:14px;word-break:break-word'>" + esc(v) + "</td>" +
+  "</tr>";
 }
 function fieldLabels(form) {
   var m = {};

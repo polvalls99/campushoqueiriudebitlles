@@ -5,10 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inscripcions · Campus Hoquei Riudebitlles</title>
   <meta name="description" content="Formulari d'inscripció del casal d'hoquei" />
+  <meta property="og:title" id="og-title" content="Inscripcions · Campus Hoquei Riudebitlles" />
+  <meta property="og:description" id="og-desc" content="Inscriu el teu fill/a al Casal d'Hoquei. Tria les setmanes i envia la inscripció en minuts." />
+  <meta property="og:image" content="logo.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -90,7 +97,15 @@
 
     <!-- Formulari -->
     <form class="form" id="form" hidden novalidate>
+      <div class="form-progress" id="form-progress" hidden>
+        <div class="form-progress__track">
+          <div class="form-progress__bar" id="form-progress-bar"></div>
+        </div>
+        <span class="form-progress__label" id="form-progress-label"></span>
+      </div>
       <div id="form-sections"></div>
+
+      <div id="price-total-card"></div>
 
       <div class="consent">
         <label class="check">
@@ -116,6 +131,7 @@
       <div class="done__mark" aria-hidden="true">✓</div>
       <h2 class="done__title" id="done-title">Inscripció enviada</h2>
       <p class="done__text" id="done-text"></p>
+      <p class="done__ref" id="done-ref" hidden></p>
       <div class="done__summary" id="done-summary"></div>
       <button class="btn btn--ghost" id="another">Inscriure un altre jugador/a</button>
     </section>
@@ -124,6 +140,10 @@
   <footer class="foot">
     <div class="wrap">
       <p data-camp-name>Casal Hoquei</p>
+      <div class="foot__contact" id="foot-contact" hidden>
+        <a class="foot__contact-item" id="foot-phone" href="#"></a>
+        <a class="foot__contact-item" id="foot-email" href="#"></a>
+      </div>
       <p class="foot__small">Inscripció gestionada de forma privada. Les dades només s'utilitzen per organitzar el casal.</p>
     </div>
   </footer>

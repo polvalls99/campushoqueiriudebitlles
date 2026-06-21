@@ -6,7 +6,7 @@
 
 // 🔧 Enganxa aquí la URL del teu Apps Script (acaba en /exec).
 // Buida = MODE DEMO amb dades d'exemple.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZGtbKs0pWfBjR7O0RZOPXtyiNU1_aGH3U8x5Xd8W7QUnBYr4FY31wg_tvIV4UwOaW/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwovO-76uPKPk3Hiti93La5QpH7p75pw9UqangyMrPB3123KcXV-x2z0se_EtLvgG4w/exec";
 
 // 🔧 Quin formulari es mostra. Es llegeix de la URL: ...index.html?form=primavera
 // Buit = formulari per defecte (les files del full sense columna "form").
@@ -103,8 +103,8 @@ async function init() {
   returningDismissed = loadReturningDismissed();
   els.retry.addEventListener("click", load);
   els.form.addEventListener("submit", onSubmit);
-  els.form.addEventListener("input", scheduleDraftSave);
-  els.form.addEventListener("change", scheduleDraftSave);
+  els.form.addEventListener("input", () => { scheduleDraftSave(); updateProgress(); updateAllPrices(); });
+  els.form.addEventListener("change", () => { scheduleDraftSave(); updateProgress(); updateAllPrices(); });
   els.another.addEventListener("click", resetForNew);
   els.returningClose.addEventListener("click", dismissReturning);
   await load();
@@ -150,6 +150,8 @@ async function load() {
     renderForm();
     els.loading.hidden = true; els.form.hidden = false;
     revealHero();
+    updateProgress();
+    updateAllPrices();
     maybeShowReturning();
   } catch (err) {
     console.error(err);
@@ -180,12 +182,39 @@ function applySettings(s) {
   setText("[data-intro]", s.intro);
   setText("[data-submit-text]", s.texto_boton);
   if (s.consentimiento) els.consentText.textContent = s.consentimiento;
-  if (s.nombre_campus) document.title = `Inscripcions · ${s.nombre_campus}`;
+  if (s.nombre_campus) {
+    document.title = `Inscripcions · ${s.nombre_campus}`;
+    const ogTitle = document.getElementById("og-title");
+    if (ogTitle) ogTitle.setAttribute("content", `Inscripcions · ${s.nombre_campus}`);
+  }
+  if (s.intro) {
+    const ogDesc = document.getElementById("og-desc");
+    if (ogDesc) ogDesc.setAttribute("content", s.intro);
+  }
   const link = document.querySelector("[data-contact-link]");
   if (link) {
     link.href = `tel:${CONTACT_PHONE}`;
     link.setAttribute("aria-label", "Trucar al 629 912 840");
   }
+  applyFooterContact(s);
+}
+
+// Omple les dades de contacte al footer
+function applyFooterContact(s) {
+  const footContact = document.getElementById("foot-contact");
+  const footPhone = document.getElementById("foot-phone");
+  const footEmail = document.getElementById("foot-email");
+  let hasAny = false;
+  if (footPhone && CONTACT_PHONE) {
+    const display = CONTACT_PHONE.replace(/^\+34/, "").replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3");
+    footPhone.href = `tel:${CONTACT_PHONE}`; footPhone.textContent = `Tel. ${display}`;
+    hasAny = true;
+  }
+  if (footEmail && s.email_contacto) {
+    footEmail.href = `mailto:${s.email_contacto}`; footEmail.textContent = s.email_contacto;
+    footEmail.hidden = false; hasAny = true;
+  } else if (footEmail) { footEmail.hidden = true; }
+  if (footContact) footContact.hidden = !hasAny;
 }
 
 // ---- Hero Slider ----
@@ -277,6 +306,12 @@ async function switchHeroForm(idx) {
 
 // ---- Render ----
 function renderForm() {
+  // Si el bloc de consentiment estava dins de les seccions (re-render), el recuperem primer
+  const consentEl = document.querySelector(".consent");
+  if (consentEl && consentEl.closest("#form-sections")) {
+    document.getElementById("price-total-card").insertAdjacentElement("beforebegin", consentEl);
+  }
+
   els.sections.innerHTML = "";
   childCount = Math.max(1, childCount || 1);
   let n = 0;
@@ -284,7 +319,6 @@ function renderForm() {
   if (open.length > 1) { n++; els.sections.appendChild(sectionEl(n, "Tria el casal", [campusPickerEl(open)])); }
 
   const allFields = [...(CONFIG.fields || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0));
-  // Els camps "file" sempre van dins de cada bloc de fill (un per fill), no en secció compartida.
   const fileFields = allFields.filter((f) => f.tipo === "file");
   const nonFileFields = allFields.filter((f) => f.tipo !== "file");
 
@@ -299,7 +333,10 @@ function renderForm() {
     if (g.name === childGroup) { n++; els.sections.appendChild(childrenSectionEl(n, g, fileFields)); }
     else if (g.fields.length) { n++; els.sections.appendChild(sectionEl(n, g.name, g.fields.map((f) => fieldEl(f)))); }
   }
-  // Les setmanes ara són per cada jugador/a (dins de cada bloc), no una secció a part.
+
+  // Mou el consentiment dins de l'última secció (Protecció de dades)
+  const lastSection = els.sections.querySelector(".section:last-child");
+  if (lastSection && consentEl) lastSection.appendChild(consentEl);
 }
 
 // El grup "per jugador/a" es repeteix per cada fill. Detectem-lo pel nom; si no,
@@ -337,6 +374,8 @@ function childBlockEl(group, i, fileFields) {
   group.fields.forEach((f) => block.appendChild(fieldEl(f, i)));
   // Camps de fitxer: un per fill, amb clau de magatzem única (c0__fieldId, c1__fieldId…)
   if (fileFields && fileFields.length) fileFields.forEach((f) => block.appendChild(fieldEl(f, i)));
+  block.appendChild(rdbCheckboxEl(i));
+  block.appendChild(familiaNombrosaCheckboxEl(i));
   block.appendChild(childWeeksEl(i));
   return block;
 }
@@ -346,6 +385,8 @@ function addChildBlock(wrap, group, fileFields) {
   childCount = wrap.querySelectorAll(".child-block").length;
   renumberChildren(wrap);
   wrap.lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+  updateProgress();
+  updateAllPrices();
 }
 function removeChildBlock(block) {
   const wrap = block.parentElement;
@@ -355,6 +396,8 @@ function removeChildBlock(block) {
   childCount = wrap.querySelectorAll(".child-block").length || 1;
   renumberChildren(wrap);
   scheduleDraftSave();
+  updateProgress();
+  updateAllPrices();
 }
 function reindexChildBlock(block, idx) {
   block.dataset.child = String(idx);
@@ -628,7 +671,7 @@ function childWeeksEl(i) {
     const lab = document.createElement("label"); lab.className = "week" + (full ? " is-full" : ""); lab.dataset.week = w.id;
     const input = document.createElement("input");
     input.type = "checkbox"; input.value = w.id; input.name = `c${i}__weeks`; input.disabled = full;
-    input.addEventListener("change", () => lab.classList.toggle("is-selected", input.checked));
+    input.addEventListener("change", () => { lab.classList.toggle("is-selected", input.checked); if (navigator.vibrate) navigator.vibrate(10); });
     const placesMeta = (!full && w.plazas_restantes != null) ? ` · queden ${w.plazas_restantes}` : "";
     const fullTag = full ? `<span class="week__tag">Complet</span>` : "";
     lab.innerHTML = `<span class="week__num">${idx + 1}</span>
@@ -642,6 +685,9 @@ function childWeeksEl(i) {
   wrap.appendChild(list);
   const err = document.createElement("p"); err.className = "field__error"; err.textContent = "Tria almenys una setmana.";
   wrap.appendChild(err);
+  const priceEl = document.createElement("div"); priceEl.className = "child-price"; priceEl.hidden = true;
+  priceEl.innerHTML = '<span class="child-price__amount"></span><span class="child-price__breakdown"></span>';
+  wrap.appendChild(priceEl);
   return wrap;
 }
 
@@ -725,15 +771,31 @@ async function onSubmit(e) {
   if (totalBytes > MAX_TOTAL_MB * 1024 * 1024) return flashNote(`Els fitxers sumen massa (màx ${MAX_TOTAL_MB} MB).`);
   const campus = (CONFIG.campuses || []).find((c) => c.id === currentCampus);
   const all = weeksForCampus();
-  const childrenPayload = children.map((ch) => ({
-    data: ch.data,
-    weeks: ch.weeks,
-    files: ch.files || [],
-    weekLabels: all.filter((w) => ch.weeks.includes(w.id)).map((w) => `${w.id} (${w.fechas || w.etiqueta})`)
-  }));
+  const pricesCfg = extractPriceConfig();
+  const childrenPayload = children.map((ch, chIdx) => {
+    const isRDB = ch.data.is_rdb === "Sí";
+    const isFN = ch.data.familia_nombrosa === "Sí";
+    let preu = null, descompte = "";
+    if (pricesCfg && ch.weeks.length > 0) {
+      preu = ch.weeks.reduce((sum, _, weekIdx) => sum + calcWeekPrice(chIdx, weekIdx, isRDB, isFN, pricesCfg), 0);
+      const d = [];
+      if (isRDB) d.push("C.P. Riudebitlles");
+      if (isFN) d.push("Família nombrosa");
+      if (chIdx > 0) d.push("Germà/na");
+      descompte = d.join(", ") || "-";
+    }
+    return {
+      data: ch.data,
+      weeks: ch.weeks,
+      files: ch.files || [],
+      weekLabels: all.filter((w) => ch.weeks.includes(w.id)).map((w) => `${w.id} (${w.fechas || w.etiqueta})`),
+      preu,
+      descompte
+    };
+  });
   const campusName = campus ? campus.nombre : "";
   const payload = {
-    form: FORM_ID, formName: (CONFIG.form && CONFIG.form.nombre) || "",
+    form: FORM_ID, formName: (CONFIG.settings && CONFIG.settings.hero_titulo) || (CONFIG.form && CONFIG.form.nombre) || "",
     campusId: currentCampus || "", campusName,
     shared, children: childrenPayload, ts: new Date().toISOString()
   };
@@ -759,8 +821,11 @@ function flashNote(msg) { els.submitNote.textContent = msg; els.submitNote.class
 // ---- Èxit ----
 function showDone(shared, children, campusName, result) {
   els.form.hidden = true; els.returning.hidden = true; els.done.hidden = false;
+  launchConfetti();
   const s = CONFIG.settings || {};
   els.doneText.textContent = (s.mensaje_exito || "Inscripció rebuda correctament.") + (result && result.demo ? "  (mode demo: encara no s'ha guardat enlloc)" : "");
+  const refEl = document.getElementById("done-ref");
+  if (refEl) refEl.hidden = true;
   const items = [];
   if (campusName) items.push(["Casal", campusName]);
   children.forEach((ch, i) => {
@@ -774,6 +839,8 @@ function showDone(shared, children, campusName, result) {
   if (email) items.push(["Correu", email]);
   els.doneSummary.innerHTML = "<dl>" + items.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join("") + "</dl>";
   window.scrollTo({ top: 0, behavior: "smooth" });
+  updateAllPrices();
+  updateProgress();
 }
 function resetForNew() {
   els.done.hidden = true; els.form.hidden = false; els.form.reset();
@@ -1109,4 +1176,276 @@ function pickName(data) {
   const nameKey = keys.find((k) => /nom|nombre/i.test(k) && !/tutor|pare|mare|padre|madre/i.test(k));
   const surKey = keys.find((k) => /cognom|apellido/i.test(k));
   return [data[nameKey], data[surKey]].filter(Boolean).join(" ").trim();
+}
+
+// ============================================================
+// Punts 1–6: progrés · preus en temps real · confetti
+// ============================================================
+
+// ---- 1. Indicador de progrés ----
+function updateProgress() {
+  const progressEl = document.getElementById("form-progress");
+  const bar = document.getElementById("form-progress-bar");
+  const label = document.getElementById("form-progress-label");
+  if (!progressEl || !bar || !label || els.form.hidden) return;
+
+  let total = 0, filled = 0;
+
+  els.sections.querySelectorAll(".field[data-required='1']").forEach((wrap) => {
+    const c = wrap.querySelector("[data-field]");
+    if (!c) return;
+    total++;
+    if (c.dataset.type === "file") {
+      const key = (c.dataset.scope != null && c.dataset.scope !== "")
+        ? `c${c.dataset.scope}__${c.dataset.field}` : c.dataset.field;
+      if (fileStore[key] && fileStore[key].length) filled++;
+    } else if (c.dataset.type === "checkbox" || c.dataset.type === "radio") {
+      if (wrap.querySelector("input:checked")) filled++;
+    } else {
+      if (c.value.trim()) filled++;
+    }
+  });
+
+  const consentEl = document.getElementById("consent");
+  total++;
+  if (consentEl && consentEl.checked) filled++;
+
+  if (CONFIG && CONFIG.settings && CONFIG.settings.semanas_obligatorias && weeksForCampus().length) {
+    els.sections.querySelectorAll("[data-weeks]").forEach((wrap) => {
+      total++;
+      if (wrap.querySelector('input[type="checkbox"]:checked')) filled++;
+    });
+  }
+
+  const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+  progressEl.hidden = false;
+  bar.style.width = pct + "%";
+
+  if (pct === 100) {
+    progressEl.classList.add("is-complete");
+    label.textContent = "Tot completat!";
+  } else {
+    progressEl.classList.remove("is-complete");
+    label.textContent = `${filled} de ${total} camps completats`;
+  }
+}
+
+// ---- 2. Preus en temps real ----
+
+// Extreu els 4 preus del text setmanes_info:
+// [general 1a setmana, general 2a+/germà, RDB 1a, RDB 2a+/germà]
+function extractPriceConfig() {
+  const info = ((CONFIG && CONFIG.settings) || {}).setmanes_info || "";
+  const nums = [...info.matchAll(/(\d+)\s*(?:EUR|€)/gi)]
+    .map((m) => parseInt(m[1], 10))
+    .filter((n) => n > 0 && n < 1000);
+  if (nums.length < 2) return null;
+  return {
+    general1: nums[0],
+    general2: nums[1],
+    rdb1: nums[2] != null ? nums[2] : nums[0],
+    rdb2: nums[3] != null ? nums[3] : nums[1]
+  };
+}
+
+function isChildRDB(childIdx) {
+  const block = document.querySelector(`.child-block[data-child="${childIdx}"]`);
+  if (!block) return false;
+  const cb = block.querySelector("[data-is-rdb]");
+  return cb ? cb.checked : false;
+}
+
+function isChildFamiliaNombrosa(childIdx) {
+  const block = document.querySelector(`.child-block[data-child="${childIdx}"]`);
+  if (!block) return false;
+  const cb = block.querySelector("[data-is-fn]");
+  return cb ? cb.checked : false;
+}
+
+// Preu d'una setmana concreta per a un fill concret
+// Regles: fill 0 + setmana 0 = preu base; tot la resta = preu reduït
+// Família nombrosa: sempre preu reduït (general2), fins i tot la primera setmana
+// RDB: escala pròpia (rdb1/rdb2), independent de família nombrosa
+function calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices) {
+  const isFirst = childIdx === 0 && weekIdx === 0;
+  if (isRDB) {
+    return isFirst ? prices.rdb1 : prices.rdb2;
+  } else if (isFN) {
+    return prices.general2;
+  } else {
+    return isFirst ? prices.general1 : prices.general2;
+  }
+}
+
+// Checkbox "Membre de família nombrosa"
+function familiaNombrosaCheckboxEl(i) {
+  const wrap = document.createElement("div");
+  wrap.className = "field rdb-field";
+  wrap.dataset.field = "familia_nombrosa"; wrap.dataset.type = "checkbox";
+  wrap.dataset.name = `c${i}__familia_nombrosa`; wrap.dataset.scope = String(i);
+  const label = document.createElement("label");
+  label.className = "rdb-toggle";
+  const input = document.createElement("input");
+  input.type = "checkbox"; input.id = `fn_c${i}`;
+  input.name = `c${i}__familia_nombrosa`; input.value = "Sí"; input.dataset.isFn = "1";
+  const box = document.createElement("span");
+  box.className = "rdb-toggle__box"; box.setAttribute("aria-hidden", "true");
+  const text = document.createElement("span");
+  text.className = "rdb-toggle__text";
+  text.innerHTML = "Membre de <strong>família nombrosa</strong>";
+  const badge = document.createElement("span");
+  badge.className = "rdb-toggle__badge"; badge.textContent = "Preu especial";
+  label.append(input, box, text, badge);
+  wrap.appendChild(label);
+  return wrap;
+}
+
+// Checkbox "Jugador/a del C.P. Riudebitlles" per a cada fill
+function rdbCheckboxEl(i) {
+  const wrap = document.createElement("div");
+  wrap.className = "field rdb-field";
+  wrap.dataset.field = "is_rdb"; wrap.dataset.type = "checkbox";
+  wrap.dataset.name = `c${i}__is_rdb`; wrap.dataset.scope = String(i);
+  const label = document.createElement("label");
+  label.className = "rdb-toggle";
+  const input = document.createElement("input");
+  input.type = "checkbox"; input.id = `rdb_c${i}`;
+  input.name = `c${i}__is_rdb`; input.value = "Sí"; input.dataset.isRdb = "1";
+  const box = document.createElement("span");
+  box.className = "rdb-toggle__box"; box.setAttribute("aria-hidden", "true");
+  const text = document.createElement("span");
+  text.className = "rdb-toggle__text";
+  text.innerHTML = "Jugador/a del <strong>C.P. Riudebitlles</strong>";
+  const badge = document.createElement("span");
+  badge.className = "rdb-toggle__badge"; badge.textContent = "Preu especial";
+  label.append(input, box, text, badge);
+  wrap.appendChild(label);
+  return wrap;
+}
+
+// Actualitza el display de preu per a un fill concret
+function updateChildPriceDisplay(childIdx) {
+  const prices = extractPriceConfig();
+  const block = document.querySelector(`.child-block[data-child="${childIdx}"]`);
+  const display = block && block.querySelector(".child-price");
+  if (!display) return;
+  if (!prices) { display.hidden = true; return; }
+
+  const isRDB = isChildRDB(childIdx);
+  const isFN = isChildFamiliaNombrosa(childIdx);
+  const selectedWeeks = [...block.querySelectorAll(".weeks input[type='checkbox']:checked")];
+
+  if (!selectedWeeks.length) { display.hidden = true; return; }
+
+  const breakdown = selectedWeeks.map((_, weekIdx) => calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices));
+
+  const total = breakdown.reduce((s, p) => s + p, 0);
+  display.hidden = false;
+  display.querySelector(".child-price__amount").textContent = `${total} €`;
+  display.querySelector(".child-price__breakdown").textContent =
+    breakdown.length > 1 ? `(${breakdown.map((p) => p + " €").join(" + ")})` : "";
+}
+
+// Actualitza la targeta de resum total de preus
+function updateTotalPriceCard() {
+  const card = document.getElementById("price-total-card");
+  if (!card) return;
+  const prices = extractPriceConfig();
+  if (!prices) { card.innerHTML = ""; return; }
+
+  const weekConfig = {};
+  (CONFIG.weeks || []).forEach((w) => { weekConfig[w.id] = w; });
+
+  const blocks = [...document.querySelectorAll(".child-block")];
+  const children = blocks.map((block, childIdx) => {
+    const isRDB = isChildRDB(childIdx);
+    const isFN = isChildFamiliaNombrosa(childIdx);
+    const selectedWeeks = [...block.querySelectorAll(".weeks input[type='checkbox']:checked")];
+    const weekBreakdown = selectedWeeks.map((inp, weekIdx) => ({
+      label: (weekConfig[inp.value] && weekConfig[inp.value].etiqueta) || inp.value,
+      price: calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices)
+    }));
+    const total = weekBreakdown.reduce((s, w) => s + w.price, 0);
+    const titleEl = block.querySelector(".child-block__title");
+    const blockTitle = (titleEl && titleEl.textContent.trim()) || `Jugador/a ${childIdx + 1}`;
+    const firstTextInput = block.querySelector('input[type="text"]');
+    const childName = firstTextInput ? firstTextInput.value.trim() : "";
+    const name = childName ? `${blockTitle} · ${childName}` : blockTitle;
+    return { name, isRDB, isFN, weekBreakdown, total, childIdx };
+  }).filter((c) => c.weekBreakdown.length > 0);
+
+  if (!children.length) { card.innerHTML = ""; return; }
+
+  const grandTotal = children.reduce((s, c) => s + c.total, 0);
+  const hasMulti = children.length > 1;
+
+  const childrenHtml = children.map((c) => {
+    const weeksHtml = c.weekBreakdown.map((w) => `
+      <div class="price-total__week-row">
+        <span class="price-total__week-label">${escapeHtml(w.label)}</span>
+        <span class="price-total__week-price">${w.price} €</span>
+      </div>`).join("");
+    const tags = [];
+    if (c.isRDB) tags.push("C.P. Riudebitlles");
+    if (c.isFN) tags.push("Família nombrosa");
+    if (c.childIdx > 0) tags.push("Germà/na");
+    const tagsHtml = tags.length
+      ? `<div class="price-total__tags">${tags.map((t) => `<span class="price-total__tag">${escapeHtml(t)}</span>`).join("")}</div>`
+      : "";
+    return `
+      <div class="price-total__child">
+        <div class="price-total__child-hd">
+          <span class="price-total__name">${escapeHtml(c.name)}</span>
+          <span class="price-total__amount">${c.total} €</span>
+        </div>
+        ${weeksHtml}
+        ${tagsHtml}
+      </div>`;
+  }).join("");
+
+  const grandHtml = hasMulti ? `
+    <div class="price-total__divider"></div>
+    <div class="price-total__row price-total__row--grand">
+      <span class="price-total__name">Total estimat</span>
+      <span class="price-total__amount">${grandTotal} €</span>
+    </div>` : "";
+
+  card.innerHTML = `<div class="price-total-card">
+    <div class="price-total__header">
+      <span class="price-total__icon" aria-hidden="true">€</span>
+      <span class="price-total__title">Preu estimat</span>
+    </div>
+    ${childrenHtml}${grandHtml}
+  </div>`;
+}
+
+function updateAllPrices() {
+  const blocks = [...document.querySelectorAll(".child-block")];
+  blocks.forEach((_, idx) => updateChildPriceDisplay(idx));
+  updateTotalPriceCard();
+}
+
+// ---- 3. Confetti (punt 3) ----
+function launchConfetti() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const COLORS = ["#1F5AE0", "#22c55e", "#FFD600", "#FF6B6B", "#A855F7", "#0EA5E9"];
+  const container = document.createElement("div");
+  container.className = "confetti-container";
+  document.body.appendChild(container);
+  for (let i = 0; i < 56; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    const isRect = Math.random() > 0.4;
+    piece.style.cssText = [
+      `left:${(Math.random() * 100).toFixed(1)}%`,
+      `background:${COLORS[Math.floor(Math.random() * COLORS.length)]}`,
+      `animation-delay:${(Math.random() * 0.9).toFixed(2)}s`,
+      `animation-duration:${(1.4 + Math.random() * 1.4).toFixed(2)}s`,
+      `width:${((isRect ? 8 : 7) + Math.random() * 5).toFixed(1)}px`,
+      `height:${((isRect ? 4 : 7) + Math.random() * 4).toFixed(1)}px`,
+      `border-radius:${isRect ? "2px" : "50%"}`
+    ].join(";");
+    container.appendChild(piece);
+  }
+  setTimeout(() => { if (container.parentNode) container.remove(); }, 4000);
 }

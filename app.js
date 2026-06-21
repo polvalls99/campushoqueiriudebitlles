@@ -294,13 +294,10 @@ async function switchHeroForm(idx) {
   currentFormIdx = idx;
   activeFormId = allForms[idx].id;
 
-  const inner = document.querySelector(".hero__inner");
-  if (inner) inner.classList.add("is-fading");
-  await new Promise(function(r) { setTimeout(r, 220); });
+  const hero = document.getElementById("hero");
+  if (hero) hero.classList.add("hero--init");
 
   await load();
-
-  requestAnimationFrame(function() { if (inner) inner.classList.remove("is-fading"); });
 }
 
 // ---- Render ----

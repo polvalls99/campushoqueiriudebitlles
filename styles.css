@@ -536,7 +536,7 @@ body {
 .week__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .week__label { font-weight: 700; }
 .week__meta { font-size: .85rem; color: var(--ink-soft); }
-.week__price { font-weight: 700; white-space: nowrap; }
+.week__price { display: none; }
 .week__check {
   width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
   border: 1.5px solid var(--line-ink); display: grid; place-items: center; color: #fff; font-size: .8rem;
@@ -710,7 +710,7 @@ body {
 
 @media (max-width: 520px) {
   .hero__inner { padding-block: 40px 46px; }
-  .week__price { font-size: .9rem; }
+
   .btn--primary { width: 100%; justify-content: center; }
   /* Col·lapsa el botó de contacte a icona sola per alliberar espai al títol */
   .topbar__contact { font-size: 0; padding: 9px; gap: 0; }

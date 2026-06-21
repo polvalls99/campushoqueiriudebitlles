@@ -903,22 +903,55 @@ body {
     --line-ink:  #1E2D4A;
     --danger:    #FF7070;
   }
+
+  /* Capçalera */
   .topbar { background: var(--card); }
+  .topbar__contact { border-color: rgba(91,142,255,.28); }
+
+  /* Inputs */
   .input, .select, .textarea { background: var(--card); color: var(--ink); }
+
+  /* Setmanes i opcions */
   .choice, .week { background: var(--card); }
+  .week__num { background: var(--blue); }
+  .week.is-selected { box-shadow: 0 0 0 3px rgba(91,142,255,.32); }
+
+  /* Checkboxes personalitzats */
   .rdb-toggle { background: var(--card); }
   .rdb-toggle:hover, .rdb-toggle:has(input:checked) { background: var(--blue-soft); }
   .rdb-toggle__box { background: var(--card); }
+  .rdb-toggle__badge { background: rgba(91,142,255,.18); color: var(--blue); }
   .check__box { background: var(--card); }
+
+  /* Fitxers */
   .filebox { background: linear-gradient(180deg, var(--card) 0%, #0B1220 100%); }
+
+  /* Notes i etiquetes */
   .note { background: var(--blue-soft); }
+
+  /* Campus chips */
   .chip { background: var(--card); color: var(--ink); }
   .chip--all { background: var(--blue); border-color: var(--blue); color: #fff; }
   .chip--all:hover { background: var(--blue-deep); border-color: var(--blue-deep); }
+
+  /* Barra "ja t'havíem vist" */
   .returning { background: var(--card); }
+  .returning__close { background: var(--card); }
+
+  /* Botó ghost (Inscriure un altre..., Tornar a provar) */
+  .btn--ghost { background: var(--card); }
+
+  /* Blocs de fill */
   .child-block { background: rgba(255,255,255,.02); }
   .child-block:first-child { background: transparent; }
+
+  /* Pantalla d'èxit */
   .done { background: linear-gradient(160deg, rgba(91,142,255,.08) 0%, transparent 55%); }
+
+  /* Progrés: etiqueta "completat" passa a verd clar */
+  .form-progress.is-complete .form-progress__label { color: #4ade80; }
+
+  /* Targetes de preu */
   .price-info {
     background: linear-gradient(135deg, rgba(91,142,255,.1) 0%, rgba(91,142,255,.04) 100%);
     border-color: rgba(91,142,255,.22);
@@ -927,7 +960,10 @@ body {
     background: linear-gradient(135deg, rgba(91,142,255,.1) 0%, rgba(91,142,255,.04) 100%);
     border-color: rgba(91,142,255,.22);
   }
-  .rdb-toggle__badge { background: rgba(91,142,255,.18); color: var(--blue); }
+  .price-total__child { border-bottom-color: var(--line-ink); }
+
+  /* Pill actiu al hero slider: mantenir text fosc sobre fons blanc */
+  .hero-pill.is-active { color: #0E2A63; }
 }
 
 /* ---- 10. Footer contacte ---- */

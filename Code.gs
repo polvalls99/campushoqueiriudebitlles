@@ -262,13 +262,27 @@ function removeExistingSubmissionRows(form, shared) {
   var lastCol = sheet.getLastColumn();
   var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   var rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-  var toDelete = [];
+  var toArchive = [];
 
   rows.forEach(function (row, idx) {
-    if (buildFamilyKeyFromRow(row, header) === familyKey) toDelete.push(idx + 2);
+    if (buildFamilyKeyFromRow(row, header) === familyKey) toArchive.push({ rowIndex: idx + 2, data: row });
   });
 
-  for (var i = toDelete.length - 1; i >= 0; i--) sheet.deleteRow(toDelete[i]);
+  if (!toArchive.length) return;
+
+  // Mou les files anteriors a la pestanya d'historial en lloc d'esborrar-les
+  var histName = subsSheetName(form) + "_Historial";
+  var histSheet = ss.getSheetByName(histName);
+  if (!histSheet) {
+    histSheet = ss.insertSheet(histName);
+    histSheet.getRange(1, 1, 1, header.length + 1).setValues([header.concat(["Arxivada"])]);
+    histSheet.setFrozenRows(1);
+  }
+  var now = new Date();
+  toArchive.forEach(function (item) { histSheet.appendRow(item.data.concat([now])); });
+
+  // Esborra de la pestanya principal (de baix a dalt per mantenir els índexs)
+  for (var i = toArchive.length - 1; i >= 0; i--) sheet.deleteRow(toArchive[i].rowIndex);
 }
 function fieldIdForColumn(col, fields, labelById) {
   if (!col) return "";
@@ -476,18 +490,13 @@ function sendConfirmation(settings, payload, rows) {
            "</div>";
   }).join("");
 
-  var badge  = "✓ Rebuda correctament" + (multi ? " &nbsp;·&nbsp; " + rows.length + " jugadors/es" : "");
-  var logoUrl = str(settings.logo_url);
-  var logoHtml = logoUrl
-    ? "<img src='" + logoUrl + "' alt='" + esc(camp) + "' style='height:54px;width:auto;display:block;margin-bottom:16px;border-radius:8px'>"
-    : "";
+  var badge = "✓ Rebuda correctament" + (multi ? " &nbsp;·&nbsp; " + rows.length + " jugadors/es" : "");
 
   var html =
     "<div style='font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#f0f4fb;padding:20px 10px;color:#16233D'>" +
 
       // Capçalera
       "<div style='background:#0E2A63;border-radius:14px 14px 0 0;padding:30px 28px'>" +
-        logoHtml +
         "<div style='font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9DC0FF;font-weight:700;margin-bottom:10px'>🏑 " + esc(camp) + "</div>" +
         "<div style='font-size:25px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:18px'>Inscripció confirmada! 🎉</div>" +
         "<span style='display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 16px;font-size:13px;color:#fff;font-weight:700'>" + badge + "</span>" +

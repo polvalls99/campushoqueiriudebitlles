@@ -575,8 +575,9 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 /* Hero fora del flow durant loading → el loader queda centrat a pantalla */
 .page--loading .hero { display: none; }
-/* Pantalla d'èxit → amaguem l'hero perquè només es vegi la confirmació */
-.page--done .hero { display: none; }
+/* Pantalla d'èxit → amaguem l'hero i el bloc "ja t'hem vist" perquè només es vegi la confirmació */
+.page--done .hero,
+.page--done .returning { display: none; }
 /* Pantalla de càrrega inicial — ocupa tot l'espai disponible */
 .page--loading #loading {
   min-height: calc(100vh - 60px);
@@ -1083,6 +1084,8 @@ body {
   border-radius: var(--radius-sm);
   animation: rise .3s ease both;
 }
+/* L'atribut [hidden] ha de guanyar al display:flex de dalt (mateixa especificitat) */
+.child-price[hidden] { display: none; }
 .child-price__icon {
   flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
   background: var(--blue); color: #fff;
@@ -1154,7 +1157,7 @@ body {
 }
 .price-total__row--grand .price-total__amount {
   position: relative; z-index: 1;
-  font-family: "Anton", sans-serif; font-size: 1.4rem; letter-spacing: .01em;
+  font-family: "Anton", sans-serif; font-size: 1.2rem; letter-spacing: .01em;
   color: #fff; -webkit-text-fill-color: #fff; background: none;
   text-shadow: 0 2px 12px rgba(0,0,0,.22);
 }

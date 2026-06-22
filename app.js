@@ -1538,7 +1538,6 @@ function updateTotalPriceCard() {
   }).join("");
 
   const grandHtml = hasMulti ? `
-    <div class="price-total__divider"></div>
     <div class="price-total__row price-total__row--grand">
       <span class="price-total__name">Total</span>
       <span class="price-total__amount">${grandTotal} €</span>

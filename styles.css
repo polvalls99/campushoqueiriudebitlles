@@ -1114,18 +1114,32 @@ body {
 .price-total__amount {
   font-family: "Anton", sans-serif; font-size: 1.1rem; color: var(--blue); letter-spacing: .02em;
 }
-.price-total__divider { height: 1px; background: var(--line-ink); margin: 6px 0; }
+.price-total__divider { height: 1px; background: var(--line-ink); margin: 10px 0 0; }
+
+/* Franja "hero" del total: bloc blau sòlid, coherent amb la marca */
 .price-total__row--grand {
-  display: flex; justify-content: flex-end; align-items: center; gap: 20px;
-  background: linear-gradient(180deg, rgba(31,90,224,.06) 0%, rgba(34,197,94,.18) 100%);
-  margin: 8px -20px -18px; padding: 14px 20px 18px;
+  position: relative; overflow: hidden;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 58%, var(--blue-deep) 100%);
+  margin: 14px -20px -18px; padding: 18px 22px 20px;
   border-radius: 0 0 var(--radius) var(--radius); border-bottom: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
 }
-.price-total__row--grand .price-total__name { font-family: "Anton", sans-serif; font-size: 1.5rem; font-weight: 400; letter-spacing: .02em; text-transform: uppercase; color: var(--navy); }
+/* Resplendor diagonal subtil al cantó superior */
+.price-total__row--grand::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 65% 130% at 88% -10%, rgba(79,142,255,.55) 0%, transparent 60%);
+}
+.price-total__row--grand .price-total__name {
+  position: relative; z-index: 1;
+  font-family: "Anton", sans-serif; font-size: 1.4rem; font-weight: 400;
+  letter-spacing: .04em; text-transform: uppercase; color: #fff;
+}
 .price-total__row--grand .price-total__amount {
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, var(--blue) 0%, #22c55e 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  position: relative; z-index: 1;
+  font-family: "Anton", sans-serif; font-size: 1.85rem; letter-spacing: .01em;
+  color: #fff; -webkit-text-fill-color: #fff; background: none;
+  text-shadow: 0 2px 12px rgba(0,0,0,.22);
 }
 
 /* Desglossament per fill i per setmana */
@@ -1248,15 +1262,16 @@ body {
   /* Pill actiu al hero slider: mantenir text fosc sobre fons blanc */
   .hero-pill.is-active { color: #0E2A63; }
 
-  /* Gradient del bloc de preu final en mode fosc */
+  /* Bloc de preu final en mode fosc */
   .price-total-card {
     background: linear-gradient(180deg, rgba(91,142,255,.08) 0%, rgba(91,142,255,.18) 100%);
     border-color: rgba(91,142,255,.22);
   }
-  .price-total__row--grand { background: linear-gradient(180deg, rgba(91,142,255,.18) 0%, rgba(34,197,94,.28) 100%); }
+  .price-total__row--grand {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 60%, var(--blue-deep) 100%);
+  }
   .price-total__row--grand .price-total__amount {
-    background: linear-gradient(135deg, var(--blue) 0%, #4ade80 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    color: #fff; -webkit-text-fill-color: #fff; background: none;
   }
   .price-total__tag { background: var(--card); border-color: var(--line-ink); }
 }

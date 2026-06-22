@@ -1112,16 +1112,16 @@ body {
 .price-total__name { font-weight: 700; color: var(--navy); }
 .price-total__meta { color: var(--ink-soft); font-size: .82rem; }
 .price-total__amount {
-  font-family: "Anton", sans-serif; font-size: 1.1rem; color: var(--blue); letter-spacing: .02em;
+  font-family: "Anton", sans-serif; font-size: 1.2rem; color: var(--blue); letter-spacing: .02em;
 }
 .price-total__divider { height: 1px; background: var(--line-ink); margin: 10px 0 0; }
 
 /* Franja "hero" del total: bloc blau sòlid, coherent amb la marca */
 .price-total__row--grand {
   position: relative; overflow: hidden;
-  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  display: flex; justify-content: flex-end; align-items: baseline; gap: 14px;
   background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 58%, var(--blue-deep) 100%);
-  margin: 14px -20px -18px; padding: 18px 22px 20px;
+  margin: 12px -20px -18px; padding: 16px 22px 18px;
   border-radius: 0 0 var(--radius) var(--radius); border-bottom: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
 }
@@ -1132,12 +1132,12 @@ body {
 }
 .price-total__row--grand .price-total__name {
   position: relative; z-index: 1;
-  font-family: "Anton", sans-serif; font-size: 1.4rem; font-weight: 400;
+  font-family: "Anton", sans-serif; font-size: 1.2rem; font-weight: 400;
   letter-spacing: .04em; text-transform: uppercase; color: #fff;
 }
 .price-total__row--grand .price-total__amount {
   position: relative; z-index: 1;
-  font-family: "Anton", sans-serif; font-size: 1.85rem; letter-spacing: .01em;
+  font-family: "Anton", sans-serif; font-size: 1.4rem; letter-spacing: .01em;
   color: #fff; -webkit-text-fill-color: #fff; background: none;
   text-shadow: 0 2px 12px rgba(0,0,0,.22);
 }

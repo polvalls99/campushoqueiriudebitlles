@@ -1139,9 +1139,9 @@ body {
 /* Franja "hero" del total: bloc blau sòlid, coherent amb la marca */
 .price-total__row--grand {
   position: relative; overflow: hidden;
-  display: flex; justify-content: flex-end; align-items: baseline; gap: 14px;
+  display: flex; justify-content: flex-end; align-items: center; gap: 14px;
   background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 58%, var(--blue-deep) 100%);
-  margin: 12px -20px -18px; padding: 16px 22px 18px;
+  margin: 12px -20px -18px; padding: 14px 22px 22px;
   border-radius: 0 0 var(--radius) var(--radius); border-bottom: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
 }

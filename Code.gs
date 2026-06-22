@@ -423,7 +423,7 @@ function sendConfirmation(settings, payload, rows) {
   var sharedBlock = sharedRows
     ? "<div style='margin:0 0 26px'>" +
         "<div style='font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#1F5AE0;font-weight:700;padding-bottom:8px;border-bottom:2px solid #EEF3FB;margin-bottom:12px'>Dades del tutor/a</div>" +
-        "<table style='border-collapse:collapse;width:100%;font-size:14px'>" + sharedRows + "</table>" +
+        "<table style='border-collapse:collapse;width:100%;table-layout:fixed;font-size:14px'>" + sharedRows + "</table>" +
       "</div>"
     : "";
 
@@ -493,7 +493,7 @@ function sendConfirmation(settings, payload, rows) {
                "<span style='font-size:15px;font-weight:800;color:#0E2A63'>🏑 " + esc(blockTitle) + "</span>" +
              "</div>" +
              "<div style='padding:16px 16px 18px'>" +
-               (childRows ? "<table style='border-collapse:collapse;width:100%;font-size:14px'>" + childRows + "</table>" : "") +
+               (childRows ? "<table style='border-collapse:collapse;width:100%;table-layout:fixed;font-size:14px'>" + childRows + "</table>" : "") +
                weeksBlock +
                preuBlock +
                filesNote +
@@ -538,8 +538,8 @@ function childGroupForForm(form) {
 }
 function emailRow(k, v) {
   return "<tr>" +
-    "<td style='padding:7px 16px 7px 0;color:#6B7C99;vertical-align:top;white-space:nowrap;font-size:14px'>" + esc(k) + "</td>" +
-    "<td style='padding:7px 0;font-weight:600;color:#16233D;font-size:14px;word-break:break-word'>" + esc(v) + "</td>" +
+    "<td style='width:40%;padding:7px 16px 7px 0;color:#6B7C99;vertical-align:top;font-size:14px;word-break:break-word'>" + esc(k) + "</td>" +
+    "<td style='width:60%;padding:7px 0;font-weight:600;color:#16233D;font-size:14px;word-break:break-word'>" + esc(v) + "</td>" +
   "</tr>";
 }
 function fieldLabels(form) {

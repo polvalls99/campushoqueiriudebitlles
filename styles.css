@@ -236,7 +236,7 @@ body {
   padding: 8px 10px 8px 14px; margin-bottom: 24px; box-shadow: var(--shadow);
 }
 .returning__toggle {
-  display: flex; align-items: center; gap: 12px; width: 100%;
+  display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0;
   background: none; border: 0; margin: 0; padding: 6px 2px;
   font: inherit; color: inherit; text-align: left; cursor: pointer;
 }

@@ -252,9 +252,12 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .returning__chevron {
-  flex: 0 0 auto; color: var(--ink-soft); font-size: 1.2rem; line-height: 1;
-  transition: transform .2s ease;
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  color: var(--blue); background: var(--blue-soft);
+  transition: transform .25s ease, background .15s ease;
 }
+.returning__toggle:hover .returning__chevron { background: var(--blue); color: #fff; }
 .returning[data-open] .returning__chevron { transform: rotate(180deg); }
 .returning__panel { grid-column: 1 / -1; display: none; padding: 2px 2px 6px; }
 .returning[data-open] .returning__panel { display: block; }

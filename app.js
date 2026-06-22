@@ -134,6 +134,7 @@ async function init() {
   els.form.addEventListener("change", () => { scheduleDraftSave(); updateProgress(); updateAllPrices(); });
   els.another.addEventListener("click", resetForNew);
   els.returningClose.addEventListener("click", dismissReturning);
+  if (els.returningToggle) els.returningToggle.addEventListener("click", toggleReturning);
   if (els.printBtn) els.printBtn.addEventListener("click", () => window.print());
   await load();
 }
@@ -142,7 +143,7 @@ function cache() {
   const id = (x) => document.getElementById(x);
   ["loading","load-error","load-error-hint","closed","retry","form","form-sections",
    "submit-btn","submit-note","done","done-text","done-summary","another",
-   "returning","returning-text","returning-actions","returning-close","consent-text","print-btn"]
+   "returning","returning-text","returning-actions","returning-close","returning-toggle","consent-text","print-btn"]
     .forEach((k) => (els[k.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = id(k)));
   els.sections = id("form-sections");
 }
@@ -1051,6 +1052,14 @@ function dismissReturning(e) {
   try { sessionStorage.setItem(RETURNING_DISMISSED_KEY, "1"); } catch {}
   hideReturning();
 }
+function setReturningOpen(open) {
+  if (!els.returning) return;
+  els.returning.toggleAttribute("data-open", !!open);
+  if (els.returningToggle) els.returningToggle.setAttribute("aria-expanded", open ? "true" : "false");
+}
+function toggleReturning() {
+  setReturningOpen(!els.returning?.hasAttribute("data-open"));
+}
 function childDisplayName(child, idx) {
   return (child && child.data && (child.data.nom_jugador || pickName(child.data))) || `Jugador/a ${idx + 1}`;
 }
@@ -1109,7 +1118,7 @@ function maybeShowReturning() {
   const fams = mergeFamiliesByKey((store.families || []).filter((f) => familyLabel(f)));
   if (!fams.length) { hideReturning(); return; }
   els.returningActions.innerHTML = "";
-  els.returningText.textContent = "Recupera les dades d'un fill concret o de tota la família:";
+  els.returningText.textContent = "Recupera dades d'una inscripció anterior:";
   fams.forEach((f) => {
     const group = document.createElement("div"); group.className = "returning-family";
 
@@ -1157,6 +1166,7 @@ function maybeShowReturning() {
     group.appendChild(actions);
     els.returningActions.appendChild(group);
   });
+  setReturningOpen(false);
   els.returning.hidden = false;
   els.returning.style.display = "";
 }

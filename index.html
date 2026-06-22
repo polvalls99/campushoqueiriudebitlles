@@ -82,17 +82,36 @@
         </svg>
       </div>
       <p class="load-camp" data-camp-name>Campus Hoquei Riudebitlles</p>
-      <p class="load-hint">Carregant formularis…</p>
+      <p class="load-hint" id="load-hint">🥅 Col·locant les porteries .</p>
     </div>
     <div class="state state--error" id="load-error" hidden>
       <p class="state__title">No s'ha pogut carregar el formulari</p>
       <p class="state__hint" id="load-error-hint">Comprova la connexió i torna-ho a provar.</p>
       <button class="btn btn--ghost" id="retry">Tornar a provar</button>
     </div>
-    <div class="state" id="closed" hidden>
-      <div class="closed__mark" aria-hidden="true">⏳</div>
-      <p class="state__title" id="closed-title">Ara mateix no hi ha inscripcions obertes</p>
-      <p class="state__hint" id="closed-text">Torna més endavant per al proper casal.</p>
+    <div class="state state--no-forms" id="closed" hidden>
+      <!-- Pista d'hoquei 3D -->
+      <div class="nf-ice-wrap" aria-hidden="true">
+        <div class="nf-ice">
+          <!-- Línia vermella del centre -->
+          <span class="nf-cl"></span>
+          <!-- Cercle + punt del centre -->
+          <span class="nf-cc"></span>
+          <span class="nf-cd"></span>
+          <!-- Àrees de porter (rectangulars) -->
+          <span class="nf-crease nf-crease--l"></span>
+          <span class="nf-crease nf-crease--r"></span>
+          <!-- Jugadors (1 per equip) -->
+          <span class="nf-p nf-p--a" style="left:32%;top:38%"></span>
+          <span class="nf-p nf-p--b" style="left:68%;top:58%"></span>
+          <!-- Puck 3D rebotant -->
+          <span class="nf-ball"></span>
+        </div>
+      </div>
+      <!-- Text -->
+      <p class="nf-tag" data-camp-name>Campus Hoquei Riudebitlles</p>
+      <h2 class="nf-title" id="closed-title">A punt per tornar a rodar</h2>
+      <p class="nf-hint" id="closed-text">Cada campus té una història. Nosaltres ja estem preparant la següent. Torna aviat per descobrir-ne tots els detalls.</p>
     </div>
 
     <!-- Formulari -->
@@ -122,7 +141,7 @@
           <span class="btn__label" data-submit-text>Enviar inscripció</span>
           <span class="btn__spinner" aria-hidden="true"></span>
         </button>
-        <p class="submit-row__note" id="submit-note"></p>
+        <p class="submit-row__note" id="submit-note" aria-live="polite" role="alert"></p>
       </div>
     </form>
 
@@ -133,7 +152,10 @@
       <p class="done__text" id="done-text"></p>
       <p class="done__ref" id="done-ref" hidden></p>
       <div class="done__summary" id="done-summary"></div>
-      <button class="btn btn--ghost" id="another">Inscriure un altre jugador/a</button>
+      <div class="done__actions">
+        <button class="btn btn--ghost" id="another">Inscriure un altre jugador/a</button>
+        <button class="btn btn--ghost" id="print-btn" type="button">Imprimir comprovant</button>
+      </div>
     </section>
   </main>
 

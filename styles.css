@@ -320,6 +320,253 @@ body {
 .state__title { font-weight: 700; color: var(--ink); margin: 0 0 6px; }
 .state__hint { margin: 0 0 16px; }
 .closed__mark { font-size: 2rem; margin-bottom: 12px; }
+
+/* ================================================================
+   Pantalla sense formularis — pista d'hoquei 3D
+   ================================================================ */
+
+.page--no-forms { background: #07101e; }
+.page--no-forms .hero { display: none; }
+.page--no-forms .main {
+  max-width: 100%;
+  padding-inline: 0;
+  margin-inline: 0;
+  padding-block: 0;
+}
+.page--no-forms .state--no-forms {
+  min-height: calc(100vh - 65px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px 72px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.page--no-forms .state--no-forms::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 55% at 50% 40%, rgba(31,90,224,.18) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* ---- Perspectiva 3D ---- */
+.nf-ice-wrap {
+  perspective: 680px;
+  perspective-origin: 50% -10%;
+  width: min(540px, 88vw);
+  margin: 0 auto 90px;
+  flex-shrink: 0;
+  animation: nf-fadein .8s ease both;
+}
+
+/* ---- Pista (superfície de gel) ---- */
+.nf-ice {
+  width: 100%;
+  aspect-ratio: 540 / 200;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, #eaf5ff 0%, #d4eaff 65%, #c0dcf7 100%);
+  border-radius: min(13%, 42px);
+  border: 2.5px solid rgba(31,90,224,.6);
+  position: relative;
+  overflow: hidden;
+  transform: rotateX(52deg);
+  transform-origin: 50% 50%;
+  box-shadow:
+    0 0 0 1px rgba(31,90,224,.15),
+    0 32px 90px rgba(0,0,0,.7),
+    0 64px 140px rgba(0,0,0,.35),
+    inset 0 0 70px rgba(200,230,255,.15);
+}
+.nf-ice::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 48%;
+  background: linear-gradient(180deg, rgba(255,255,255,.28) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.nf-ice::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 82% 88% at 50% 50%, transparent 50%, rgba(31,90,224,.1) 100%);
+  pointer-events: none;
+}
+
+/* ---- Línies de la pista ---- */
+.nf-cl {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: rgba(210,35,35,.5);
+}
+.nf-cc {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 22%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(210,35,35,.4);
+}
+.nf-cd {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 2.8%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(210,35,35,.5);
+}
+
+/* Creases — rectangulars (sense border-radius) */
+.nf-crease {
+  position: absolute;
+  top: 22%; height: 56%; width: 10.5%;
+  border: 2px solid rgba(210,35,35,.4);
+  background: rgba(160,215,255,.14);
+}
+.nf-crease--l { left: 4%; border-left: none; }
+.nf-crease--r { right: 4%; border-right: none; }
+
+/* ---- Jugadors ---- */
+.nf-p {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 3.5%; aspect-ratio: 1;
+}
+.nf-p--a {
+  background: #2563eb;
+  box-shadow: 0 0 0 1.5px rgba(37,99,235,.5), 0 2px 6px rgba(0,0,0,.35);
+  animation: nf-move-a 15s linear infinite;
+}
+.nf-p--b {
+  background: #e5521a;
+  box-shadow: 0 0 0 1.5px rgba(229,82,26,.5), 0 2px 6px rgba(0,0,0,.35);
+  animation: nf-move-b 15s linear infinite;
+}
+/* Jugador A: segueix el puck quan ataca, defensa quan B té la pilota */
+@keyframes nf-move-a {
+  0%   { left: 32%; top: 38%; }   /* centre-esquerra */
+  7%   { left: 60%; top: 22%; }   /* rush cap al fwd-T (amb puck) */
+  13%  { left: 84%; top: 10%; }   /* cantonada dreta-alta */
+  20%  { left: 55%; top: 32%; }   /* replegament al mig */
+  27%  { left: 44%; top: 46%; }   /* pressió central */
+  34%  { left: 30%; top: 52%; }   /* bloqueig B fwd-B */
+  40%  { left: 20%; top: 40%; }   /* defensa porteria pròpia */
+  47%  { left: 26%; top: 22%; }   /* desallotjament del porter */
+  55%  { left: 60%; top: 66%; }   /* creuament ala baixa */
+  61%  { left: 84%; top: 76%; }   /* cantonada dreta-baixa */
+  67%  { left: 60%; top: 60%; }   /* replegament */
+  74%  { left: 35%; top: 28%; }   /* talla B fwd-T */
+  80%  { left: 20%; top: 41%; }   /* defensa porteria (2n tir) */
+  87%  { left: 26%; top: 62%; }   /* segueix desallotjament */
+  93%  { left: 38%; top: 42%; }   /* torna al centre */
+  100% { left: 32%; top: 38%; }
+}
+/* Jugador B: porta la pilota en atac, defensa quan A té la pilota */
+@keyframes nf-move-b {
+  0%   { left: 68%; top: 58%; }   /* centre-dreta */
+  7%   { left: 64%; top: 22%; }   /* contesta A al fwd-T */
+  13%  { left: 80%; top: 12%; }   /* disputa cantonada */
+  20%  { left: 68%; top: 24%; }   /* recupera puck (B def-T) */
+  27%  { left: 50%; top: 50%; }   /* porta al centre */
+  34%  { left: 35%; top: 60%; }   /* entrada a zona (B fwd-B) */
+  40%  { left: 14%; top: 42%; }   /* tir a porteria! */
+  47%  { left: 40%; top: 35%; }   /* recuperació post-tir */
+  55%  { left: 63%; top: 67%; }   /* disputa ala baixa */
+  61%  { left: 82%; top: 76%; }   /* cantonada baixa (porta puck) */
+  67%  { left: 69%; top: 63%; }   /* recupera (B def-B) */
+  74%  { left: 35%; top: 26%; }   /* atac ràpid B fwd-T */
+  80%  { left: 14%; top: 43%; }   /* 2n tir a porteria! */
+  87%  { left: 38%; top: 58%; }   /* torna al mig */
+  93%  { left: 58%; top: 52%; }   /* reposicionament */
+  100% { left: 68%; top: 58%; }
+}
+
+/* ---- Puck (minimalista) ---- */
+.nf-ball {
+  position: absolute;
+  width: 2.6%; aspect-ratio: 1;
+  border-radius: 50%;
+  background: #111;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.1),
+    0 3px 8px rgba(0,0,0,.6);
+  z-index: 3;
+  animation: nf-bounce 15s linear infinite;
+}
+
+/* Trajectòria: passes entre jugadors, tirs a porteria, rebots (15s loop) */
+@keyframes nf-bounce {
+  0%   { left: 47%; top: 44%; }   /* centre - kickoff */
+  7%   { left: 62%; top: 20%; }   /* A fwd-T (passada) */
+  13%  { left: 88%; top:  6%; }   /* cantonada dreta-alta (rebot) */
+  20%  { left: 70%; top: 22%; }   /* B def-T (recuperació) */
+  27%  { left: 50%; top: 50%; }   /* B centre (passada) */
+  34%  { left: 33%; top: 61%; }   /* B fwd-B (entrada a zona) */
+  40%  { left:  7%; top: 42%; }   /* tir a porteria A */
+  47%  { left: 22%; top: 21%; }   /* A def-T (desallotjament) */
+  55%  { left: 62%; top: 69%; }   /* A fwd-B (creuament) */
+  61%  { left: 88%; top: 78%; }   /* cantonada dreta-baixa (rebot) */
+  67%  { left: 71%; top: 63%; }   /* B def-B (recuperació) */
+  74%  { left: 33%; top: 26%; }   /* B fwd-T (passada ràpida) */
+  80%  { left:  7%; top: 42%; }   /* tir a porteria A (2n) */
+  87%  { left: 23%; top: 64%; }   /* A def-B (desallotjament) */
+  93%  { left: 47%; top: 47%; }   /* A centre (tornada al mig) */
+  100% { left: 47%; top: 44%; }
+}
+
+/* ---- Tipografia ---- */
+.nf-tag {
+  font-family: "Anton", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  font-size: 1rem;
+  color: rgba(91,142,255,.75);
+  margin: 0 0 14px;
+  animation: nf-fadein .6s .18s ease both;
+}
+.nf-title {
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.9rem, 5.5vw, 3.2rem);
+  letter-spacing: -.025em;
+  line-height: .97;
+  color: #fff;
+  margin: 0 0 16px;
+  animation: nf-fadein .7s .28s ease both;
+}
+.nf-hint {
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(.88rem, 1.9vw, 1rem);
+  color: rgba(255,255,255,.45);
+  max-width: 56ch;
+  margin: 0 auto;
+  line-height: 1.7;
+  animation: nf-fadein .6s .4s ease both;
+}
+@keyframes nf-fadein {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 520px) {
+  .nf-ice-wrap { perspective: 520px; margin-bottom: 64px; }
+  .nf-ice { transform: rotateX(44deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-ice-wrap, .nf-tag, .nf-title, .nf-hint { animation: none !important; opacity: 1 !important; }
+  .nf-ball { animation-play-state: paused; left: 47%; top: 44%; }
+  .nf-p--a { animation: none !important; left: 32%; top: 38%; transform: translate(-50%,-50%); }
+  .nf-p--b { animation: none !important; left: 68%; top: 58%; transform: translate(-50%,-50%); }
+  .nf-ice { transform: none; }
+}
+
 .spinner {
   width: 30px; height: 30px; margin: 0 auto 14px;
   border: 3px solid var(--line-ink); border-top-color: var(--blue);
@@ -331,8 +578,8 @@ body {
 /* Pantalla de càrrega inicial — ocupa tot l'espai disponible */
 .page--loading #loading {
   min-height: calc(100vh - 60px);
-  padding: 0 20px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 20px 64px;
+  display: flex; flex-direction: column; align-items: center;
 }
 /* Animació de càrrega: estic d'hoquei patins xutant la pilota */
 .load-shot {
@@ -374,6 +621,29 @@ body {
   font-size: 1.1rem; color: var(--navy); margin: 0 0 8px;
 }
 .load-hint { font-size: .84rem; color: var(--ink-soft); margin: 0; }
+
+/* ---- Skeleton de càrrega ---- */
+.form-skeleton { width: 100%; max-width: var(--maxw); margin-top: 36px; }
+.skeleton-card {
+  background: var(--card); border: 1px solid var(--line-ink);
+  border-radius: var(--radius); padding: 22px 20px;
+  margin-bottom: 18px; box-shadow: var(--shadow);
+}
+.skeleton-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.skeleton-field { margin-bottom: 14px; }
+.skeleton-field:last-child { margin-bottom: 0; }
+.skeleton-line {
+  display: block; background: var(--line-ink); border-radius: 999px;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+.skeleton-num { width: 34px; height: 24px; border-radius: 7px; flex-shrink: 0; }
+.skeleton-title { height: 18px; width: 38%; }
+.skeleton-label { height: 11px; width: 32%; margin-bottom: 8px; }
+.skeleton-input { height: 44px; border-radius: var(--radius-sm); }
+@keyframes skeleton-shimmer {
+  0%, 100% { opacity: .75; }
+  50%       { opacity: .3; }
+}
 
 /* ---------- Seccions del formulari ---------- */
 .form { animation: rise .5s ease both; }
@@ -525,6 +795,7 @@ body {
   position: relative; display: flex; align-items: center; gap: 14px;
   border: 1.5px solid var(--line-ink); border-radius: var(--radius-sm);
   padding: 14px 15px; background: #fff; cursor: pointer; transition: .15s;
+  overflow: hidden;
 }
 .week:hover { border-color: var(--blue); }
 .week input { position: absolute; opacity: 0; pointer-events: none; }
@@ -679,9 +950,8 @@ body {
 }
 
 /* ---- Setmana: micro-resposta al clic + halo si seleccionada ---- */
-.week { transition: border-color .15s, background .15s, box-shadow .15s, transform .12s; }
+.week { transition: border-color .15s, background .15s, transform .12s; }
 .week:not(.is-full):active { transform: scale(.985); }
-.week.is-selected { box-shadow: 0 0 0 3px rgba(31,90,224,.18); }
 
 /* ---- Botó principal: elevació + resplendor al hover ---- */
 .btn--primary { transition: background .15s, box-shadow .15s, transform .15s; }
@@ -814,8 +1084,9 @@ body {
 /* ---- 2. Resum total de preus ---- */
 #price-total-card { margin-bottom: 22px; }
 .price-total-card {
-  background: var(--card); border: 1px solid var(--line-ink);
-  border-left: 3px solid var(--blue); border-radius: var(--radius);
+  background: linear-gradient(170deg, rgba(31,90,224,.04) 0%, rgba(34,197,94,.05) 100%);
+  border: 1px solid rgba(31,90,224,.16); border-left: 3px solid var(--blue);
+  border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow); animation: rise .4s ease both;
 }
 .price-total__header { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
@@ -827,7 +1098,7 @@ body {
 }
 .price-total__title {
   font-family: "Anton", sans-serif; text-transform: uppercase;
-  letter-spacing: .05em; font-size: .82rem; color: var(--navy);
+  letter-spacing: .05em; font-size: 1rem; color: var(--navy);
 }
 .price-total__row {
   display: grid; grid-template-columns: 1fr auto auto; gap: 6px 16px;
@@ -843,10 +1114,16 @@ body {
 .price-total__divider { height: 1px; background: var(--line-ink); margin: 6px 0; }
 .price-total__row--grand {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 0 0; border-bottom: none;
+  background: linear-gradient(135deg, rgba(31,90,224,.14) 0%, rgba(34,197,94,.12) 100%);
+  margin: 8px -20px -18px; padding: 14px 20px 18px;
+  border-radius: 0 0 var(--radius) var(--radius); border-bottom: none;
 }
-.price-total__row--grand .price-total__name { font-size: 1rem; }
-.price-total__row--grand .price-total__amount { font-size: 1.35rem; color: var(--navy); }
+.price-total__row--grand .price-total__name { font-family: "Anton", sans-serif; font-size: 1.5rem; font-weight: 400; letter-spacing: .02em; text-transform: uppercase; color: var(--navy); }
+.price-total__row--grand .price-total__amount {
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, var(--blue) 0%, #22c55e 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
 
 /* Desglossament per fill i per setmana */
 .price-total__child {
@@ -917,7 +1194,6 @@ body {
   /* Setmanes i opcions */
   .choice, .week { background: var(--card); }
   .week__num { background: var(--blue); }
-  .week.is-selected { box-shadow: 0 0 0 3px rgba(91,142,255,.32); }
 
   /* Checkboxes personalitzats */
   .rdb-toggle { background: var(--card); }
@@ -967,6 +1243,17 @@ body {
 
   /* Pill actiu al hero slider: mantenir text fosc sobre fons blanc */
   .hero-pill.is-active { color: #0E2A63; }
+
+  /* Gradient del bloc de preu final en mode fosc */
+  .price-total-card {
+    background: linear-gradient(170deg, rgba(91,142,255,.07) 0%, rgba(34,197,94,.06) 100%);
+    border-color: rgba(91,142,255,.22);
+  }
+  .price-total__row--grand { background: linear-gradient(135deg, rgba(91,142,255,.18) 0%, rgba(34,197,94,.14) 100%); }
+  .price-total__row--grand .price-total__amount {
+    background: linear-gradient(135deg, var(--blue) 0%, #4ade80 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
 }
 
 /* ---- 10. Footer contacte ---- */
@@ -990,4 +1277,21 @@ body {
   font-size: .82rem; color: var(--ink-soft); letter-spacing: .04em;
   background: var(--blue-soft); border-radius: 999px;
   padding: 4px 14px; display: inline-block; margin: -4px 0 18px;
+}
+.done__actions {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px;
+}
+
+/* ---- Print ---- */
+@media print {
+  .topbar, .hero, .returning, .form, #loading, #load-error, #closed,
+  .foot, .done__actions, .confetti-container, #form-progress { display: none !important; }
+  body { background: #fff; color: #000; -webkit-print-color-adjust: exact; }
+  .main { padding-block: 0; }
+  .done {
+    padding: 20px 0; background: none;
+    animation: none;
+  }
+  .done__mark { box-shadow: none; animation: none; }
+  .done__summary { border: 1px solid #ccc; box-shadow: none; }
 }

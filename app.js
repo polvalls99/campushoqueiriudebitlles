@@ -19,6 +19,34 @@ const RETURNING_DISMISSED_KEY = "casal_hoquei_returning_dismissed";
 const MAX_FILE_MB = 5;
 const MAX_TOTAL_MB = 12;
 
+const LOAD_HINTS = [
+  "📋 Preparant la teva inscripció",
+  "🏑 Buscant la millor línia de passada",
+  "🛼 Fent els últims ajustos als patins",
+  "✨ Donant els últims retocs",
+];
+let _hintTimer = null;
+function startHintCycle() {
+  const el = document.getElementById("load-hint");
+  if (!el) return;
+  const DOTS = [" .", " ..", " ..."];
+  let phraseIdx = 0, dotsIdx = 0;
+  const render = () => { el.textContent = LOAD_HINTS[phraseIdx] + DOTS[dotsIdx]; };
+  render();
+  _hintTimer = setInterval(() => {
+    dotsIdx++;
+    if (dotsIdx >= DOTS.length) {
+      dotsIdx = 0;
+      phraseIdx = (phraseIdx + 1) % LOAD_HINTS.length;
+    }
+    render();
+  }, 600);
+}
+function stopHintCycle() {
+  clearInterval(_hintTimer);
+  _hintTimer = null;
+}
+
 // Textos llargs de les autoritzacions
 const T_ACTIVITAT = "Autoritzo el meu fill/a a dur a terme les activitats programades al casal (esport, sortides, piscina, etc.), que es realitzaran del 29 de juny al 31 de juliol de 2026, tant a peu com en vehicle privat o públic. La responsabilitat de custòdia del club sobre l'infant serà exclusivament dins l'horari del casal, i passarà als tutors un cop finalitzada l'activitat.";
 const T_VEHICLE = "Autoritzo a usar un vehicle privat per al desplaçament no urgent ni especialitzat en cas de necessitar atenció mèdica. També autoritzo a efectuar petites cures per part de l'equip de monitors.";
@@ -106,6 +134,7 @@ async function init() {
   els.form.addEventListener("change", () => { scheduleDraftSave(); updateProgress(); updateAllPrices(); });
   els.another.addEventListener("click", resetForNew);
   els.returningClose.addEventListener("click", dismissReturning);
+  if (els.printBtn) els.printBtn.addEventListener("click", () => window.print());
   await load();
 }
 
@@ -113,7 +142,7 @@ function cache() {
   const id = (x) => document.getElementById(x);
   ["loading","load-error","load-error-hint","closed","retry","form","form-sections",
    "submit-btn","submit-note","done","done-text","done-summary","another",
-   "returning","returning-text","returning-actions","returning-close","consent-text"]
+   "returning","returning-text","returning-actions","returning-close","consent-text","print-btn"]
     .forEach((k) => (els[k.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = id(k)));
   els.sections = id("form-sections");
 }
@@ -127,34 +156,58 @@ function revealHero() {
   });
 }
 
+// ---- Skeleton de càrrega ----
+function renderSkeleton() {
+  const prev = document.getElementById("form-skeleton");
+  if (prev) prev.remove();
+  const sk = document.createElement("div");
+  sk.id = "form-skeleton";
+  sk.className = "form-skeleton";
+  [[4, true], [5, true], [3, false]].forEach(([n, inputs]) => {
+    const card = document.createElement("div"); card.className = "skeleton-card";
+    const fields = Array.from({ length: n }, (_, i) => inputs
+      ? `<div class="skeleton-field"><span class="skeleton-line skeleton-label"></span><span class="skeleton-line skeleton-input"></span></div>`
+      : `<div class="skeleton-field"><span class="skeleton-line skeleton-label" style="width:${[60,45,72,55][i]}%"></span></div>`
+    ).join("");
+    card.innerHTML = `<div class="skeleton-head"><span class="skeleton-line skeleton-num"></span><span class="skeleton-line skeleton-title"></span></div>${fields}`;
+    sk.appendChild(card);
+  });
+  els.loading.appendChild(sk);
+}
+
 // ---- Càrrega ----
 async function load() {
+  document.body.classList.remove("page--no-forms");
   els.loading.hidden = false; els.loadError.hidden = true; els.closed.hidden = true;
   els.form.hidden = true; els.done.hidden = true;
   hideReturning();
+  startHintCycle();
+  renderSkeleton();
   try {
     CONFIG = await fetchConfig();
     applySettings(CONFIG.settings || {});
     initHeroSlider();
     if (CONFIG.form && CONFIG.form.habilitado === false) {
-      els.loading.hidden = true; els.closed.hidden = false;
+      document.body.classList.add("page--no-forms");
+      stopHintCycle(); els.loading.hidden = true; els.closed.hidden = false;
       revealHero(); return;
     }
     const open = enabledCampuses();
     if (CONFIG.campuses && CONFIG.campuses.length && open.length === 0) {
-      els.loading.hidden = true; els.closed.hidden = false;
+      document.body.classList.add("page--no-forms");
+      stopHintCycle(); els.loading.hidden = true; els.closed.hidden = false;
       revealHero(); return;
     }
     currentCampus = open.length ? open[0].id : null;
     renderForm();
-    els.loading.hidden = true; els.form.hidden = false;
+    stopHintCycle(); els.loading.hidden = true; els.form.hidden = false;
     revealHero();
     updateProgress();
     updateAllPrices();
     maybeShowReturning();
   } catch (err) {
     console.error(err);
-    els.loading.hidden = true; els.loadError.hidden = false;
+    stopHintCycle(); els.loading.hidden = true; els.loadError.hidden = false;
     revealHero();
     if (!SCRIPT_URL) els.loadErrorHint.textContent = "Encara no has configurat la URL del servidor (SCRIPT_URL a app.js).";
   }
@@ -207,6 +260,19 @@ function applyFooterContact(s) {
   if (footPhone && CONTACT_PHONE) {
     const display = CONTACT_PHONE.replace(/^\+34/, "").replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3");
     footPhone.href = `tel:${CONTACT_PHONE}`; footPhone.textContent = `Tel. ${display}`;
+    hasAny = true;
+  }
+  if (footContact && CONTACT_PHONE) {
+    let waLink = document.getElementById("foot-whatsapp");
+    if (!waLink) {
+      waLink = document.createElement("a");
+      waLink.id = "foot-whatsapp";
+      waLink.className = "foot__contact-item";
+      waLink.target = "_blank"; waLink.rel = "noopener noreferrer";
+      footContact.appendChild(waLink);
+    }
+    waLink.href = `https://wa.me/${CONTACT_PHONE.replace(/\D/g, "")}`;
+    waLink.textContent = "WhatsApp";
     hasAny = true;
   }
   if (footEmail && s.email_contacto) {
@@ -350,7 +416,7 @@ function childrenSectionEl(num, group, fileFields) {
   sec.appendChild(wrap);
   const add = document.createElement("button");
   add.type = "button"; add.className = "btn btn--ghost add-child";
-  add.innerHTML = `<span aria-hidden="true">+</span> Afegir un altre fill/a`;
+  add.innerHTML = `<span aria-hidden="true">+</span> Afegir un altre nen/a`;
   add.addEventListener("click", () => addChildBlock(wrap, group, fileFields));
   sec.appendChild(add);
   for (let i = 0; i < childCount; i++) wrap.appendChild(childBlockEl(group, i, fileFields));
@@ -517,13 +583,31 @@ function fieldEl(f, scope) {
   control.dataset.field = f.id; control.dataset.type = f.tipo || "text";
   control.dataset.name = nm;
   if (scoped) control.dataset.scope = String(scope);
+
+  if (!choiceLike && control.tagName === "INPUT") {
+    const AC = { nom_tutor: "name", email: "email", telefon: "tel", adreca: "street-address", codi_postal: "postal-code", poblacio: "address-level2" };
+    if (AC[f.id]) control.autocomplete = AC[f.id];
+    if (f.id === "codi_postal") control.inputMode = "numeric";
+    if (new Set(["nom_jugador", "nom_tutor", "adreca", "poblacio"]).has(f.id)) control.setAttribute("autocapitalize", "words");
+  }
+
   wrap.appendChild(control);
+
+  if (!choiceLike) {
+    control.addEventListener("blur", () => { if (wrap.dataset.required === "1") validateSingleField(wrap); });
+  }
 
   if (f.ayuda && !choiceLike) {
     const help = document.createElement("p"); help.className = "field__help"; help.textContent = f.ayuda; wrap.appendChild(help);
   }
   const err = document.createElement("p"); err.className = "field__error"; err.textContent = "Aquest camp és obligatori.";
   wrap.appendChild(err);
+  if (f.id === "email") {
+    const frag = document.createDocumentFragment();
+    frag.appendChild(wrap);
+    frag.appendChild(buildEmailConfirmField(scope, sfx));
+    return frag;
+  }
   return wrap;
 }
 
@@ -592,7 +676,7 @@ function buildPriceTableFromConfig() {
   const rows = [];
   rows.push({ label: isMulti ? "1a setmana" : "General", gen: p1, rdb: p1r });
   if (isMulti) {
-    rows.push({ label: "2a setmana · 2n germà/na · Família nombrosa", gen: p2, rdb: p2r });
+    rows.push({ label: "2a setmana · 2n germà/na · família nombrosa", gen: p2, rdb: p2r });
   } else if (p2 !== p1) {
     rows.push({ label: "Germà/na · família nombrosa",  gen: p2, rdb: p2r });
   }
@@ -663,6 +747,80 @@ function childWeeksEl(i) {
 }
 
 // ---- Recollida + validació ----
+function validateSingleField(wrap) {
+  const c = wrap.querySelector("[data-field]");
+  if (!c) return true;
+  const errEl = wrap.querySelector(".field__error");
+  let empty = false;
+  if (c.dataset.type === "file") {
+    const key = (c.dataset.scope != null && c.dataset.scope !== "")
+      ? `c${c.dataset.scope}__${c.dataset.field}` : c.dataset.field;
+    empty = !(fileStore[key] && fileStore[key].length);
+  } else if (c.dataset.type === "checkbox" || c.dataset.type === "radio") {
+    empty = !wrap.querySelector("input:checked");
+  } else {
+    const val = c.value.trim();
+    empty = !val;
+    if (!empty) {
+      if ((c.dataset.type === "email" || c.dataset.field === "email") && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
+        empty = true; if (errEl) errEl.textContent = "Introdueix un correu vàlid.";
+      } else if (c.dataset.field === "email_confirm") {
+        const sc = c.dataset.scope;
+        const emailSel = (sc != null && sc !== "")
+          ? `.child-block[data-child="${sc}"] [data-field="email"]`
+          : `[data-field="email"]:not([data-scope])`;
+        const ref = document.querySelector(emailSel);
+        if (!ref || ref.value.trim() !== val) {
+          empty = true; if (errEl) errEl.textContent = "Els correus no coincideixen.";
+        }
+      } else if (c.dataset.field === "nif" && !/^\d{8}[A-Za-z]$|^[XYZ]\d{7}[A-Za-z]$/i.test(val)) {
+        empty = true; if (errEl) errEl.textContent = "Format de NIF no vàlid (p.ex. 12345678A).";
+      } else if (c.dataset.field === "codi_postal" && !/^\d{5}$/.test(val)) {
+        empty = true; if (errEl) errEl.textContent = "El codi postal ha de tenir 5 dígits.";
+      } else if (c.dataset.field === "telefon" && !/^[0-9\s+\-.]{7,15}$/.test(val)) {
+        empty = true; if (errEl) errEl.textContent = "Introdueix un telèfon vàlid.";
+      } else {
+        if (errEl) errEl.textContent = "Aquest camp és obligatori.";
+      }
+    }
+  }
+  wrap.classList.toggle("field--invalid", empty);
+  return !empty;
+}
+function buildEmailConfirmField(scope, sfx) {
+  const scoped = scope != null;
+  const labId = `f_email_confirm${sfx || ""}`;
+  const nm = scoped ? `c${scope}__email_confirm` : "email_confirm";
+  const wrap = document.createElement("div");
+  wrap.className = "field"; wrap.dataset.id = "email_confirm"; wrap.dataset.required = "1";
+  if (scoped) wrap.dataset.scope = String(scope);
+  const label = document.createElement("label");
+  label.className = "field__label"; label.setAttribute("for", labId);
+  label.innerHTML = `Confirma el correu electrònic <span class="field__req">*</span>`;
+  wrap.appendChild(label);
+  const input = document.createElement("input");
+  input.type = "email"; input.id = labId; input.className = "input";
+  input.autocomplete = "off";
+  input.dataset.field = "email_confirm"; input.dataset.type = "email_confirm";
+  input.dataset.name = nm;
+  if (scoped) input.dataset.scope = String(scope);
+  input.addEventListener("blur", () => validateSingleField(wrap));
+  wrap.appendChild(input);
+  const err = document.createElement("p"); err.className = "field__error"; err.textContent = "Els correus no coincideixen.";
+  wrap.appendChild(err);
+  return wrap;
+}
+function syncEmailConfirmIn(root) {
+  root.querySelectorAll('[data-field="email"]').forEach((emailEl) => {
+    if (!emailEl.value) return;
+    const scope = emailEl.dataset.scope;
+    const sel = (scope != null && scope !== "")
+      ? `[data-field="email_confirm"][data-scope="${scope}"]`
+      : '[data-field="email_confirm"]:not([data-scope])';
+    const confirmEl = root.querySelector(sel);
+    if (confirmEl) confirmEl.value = emailEl.value;
+  });
+}
 // Llegeix el valor d'un control (input/select/choices) dins d'una arrel donada.
 function readControl(c, root) {
   if (c.dataset.type === "checkbox") return [...root.querySelectorAll(`input[name="${c.dataset.name}"]:checked`)].map((i) => i.value).join(", ");
@@ -675,6 +833,7 @@ function collect() {
   els.sections.querySelectorAll("[data-field]").forEach((c) => {
     if (c.dataset.scope != null && c.dataset.scope !== "") return; // és d'un fill → s'agafa a sota
     if (c.dataset.type === "file") return; // fitxers sempre van dins dels blocs de fill
+    if (c.dataset.field === "email_confirm") return;
     shared[c.dataset.field] = readControl(c, els.sections);
   });
 
@@ -685,6 +844,7 @@ function collect() {
     const data = {};
     block.querySelectorAll("[data-field]").forEach((c) => {
       if (c.dataset.type === "file") return;
+      if (c.dataset.field === "email_confirm") return;
       data[c.dataset.field] = readControl(c, block);
     });
     const weeks = [...block.querySelectorAll(".weeks input:checked")].map((i) => i.value);
@@ -702,20 +862,8 @@ function collect() {
 function validate() {
   let ok = true, firstBad = null;
   els.sections.querySelectorAll(".field[data-required='1']").forEach((wrap) => {
-    const c = wrap.querySelector("[data-field]"); let empty;
-    if (c.dataset.type === "file") {
-      // Usa la clau amb àmbit de fill si és un camp scoped
-      const key = (c.dataset.scope != null && c.dataset.scope !== "")
-        ? `c${c.dataset.scope}__${c.dataset.field}` : c.dataset.field;
-      empty = !(fileStore[key] && fileStore[key].length);
-    }
-    else if (c.dataset.type === "checkbox" || c.dataset.type === "radio") empty = !wrap.querySelector("input:checked");
-    else {
-      empty = !c.value.trim();
-      if (c.dataset.type === "email" && c.value.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.value.trim())) { empty = true; wrap.querySelector(".field__error").textContent = "Introdueix un correu vàlid."; }
-    }
-    wrap.classList.toggle("field--invalid", empty);
-    if (empty && !firstBad) firstBad = wrap; if (empty) ok = false;
+    const valid = validateSingleField(wrap);
+    if (!valid) { ok = false; if (!firstBad) firstBad = wrap; }
   });
   // Setmanes obligatòries: cada jugador/a n'ha de tenir almenys una.
   if (CONFIG.settings && CONFIG.settings.semanas_obligatorias && weeksForCampus().length) {
@@ -795,7 +943,14 @@ function showDone(shared, children, campusName, result) {
   const s = CONFIG.settings || {};
   els.doneText.textContent = (s.mensaje_exito || "Inscripció rebuda correctament.") + (result && result.demo ? "  (mode demo: encara no s'ha guardat enlloc)" : "");
   const refEl = document.getElementById("done-ref");
-  if (refEl) refEl.hidden = true;
+  if (refEl) {
+    if (result && result.id && !result.demo) {
+      refEl.textContent = `Ref. ${result.id}`;
+      refEl.hidden = false;
+    } else {
+      refEl.hidden = true;
+    }
+  }
   const items = [];
   if (campusName) items.push(["Casal", campusName]);
   children.forEach((ch, i) => {
@@ -949,6 +1104,13 @@ function maybeShowReturning() {
   els.returningText.textContent = "Recupera les dades d'un fill concret o de tota la família:";
   fams.forEach((f) => {
     const group = document.createElement("div"); group.className = "returning-family";
+
+    const groupLabel = fams.length > 1 ? familyLabel(f) : (f.email || "");
+    if (groupLabel) {
+      const titleEl = document.createElement("p"); titleEl.className = "returning-family__title";
+      titleEl.textContent = groupLabel;
+      group.appendChild(titleEl);
+    }
 
     const actions = document.createElement("div"); actions.className = "returning-family__actions";
     if ((f.children || []).length > 1) {
@@ -1120,15 +1282,19 @@ function prefillFamilySelection(entry, selectedIdxs) {
   childCount = Math.max(1, selected.length);
   renderForm();
   fillControlsIn(els.sections, entry.shared, true); // camps compartits
+  syncEmailConfirmIn(els.sections);
   const blocks = [...document.querySelectorAll(".child-block")];
   selected.forEach((ch, i) => {
     const block = blocks[i]; if (!block) return;
     fillControlsIn(block, ch.data, false);
+    syncEmailConfirmIn(block);
     (ch.weeks || []).forEach((wid) => {
       const inp = block.querySelector(`.weeks input[value="${wid}"]`);
       if (inp && !inp.disabled) { inp.checked = true; inp.dispatchEvent(new Event("change")); }
     });
   });
+  updateAllPrices();
+  updateProgress();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -1190,6 +1356,10 @@ function updateProgress() {
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
   progressEl.hidden = false;
   bar.style.width = pct + "%";
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuenow", String(pct));
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
 
   if (pct === 100) {
     progressEl.classList.add("is-complete");
@@ -1324,10 +1494,11 @@ function updateTotalPriceCard() {
     const isRDB = isChildRDB(childIdx);
     const isFN = isChildFamiliaNombrosa(childIdx);
     const selectedWeeks = [...block.querySelectorAll(".weeks input[type='checkbox']:checked")];
-    const weekBreakdown = selectedWeeks.map((inp, weekIdx) => ({
-      label: (weekConfig[inp.value] && weekConfig[inp.value].etiqueta) || inp.value,
-      price: calcWeekPrice(childIdx, weekIdx, isRDB, isFN, getWeekPrices(inp.value))
-    }));
+    const weekBreakdown = selectedWeeks.map((inp, weekIdx) => {
+      const wk = weekConfig[inp.value];
+      const label = wk ? (wk.fechas ? `${wk.etiqueta} · ${wk.fechas}` : wk.etiqueta) : inp.value;
+      return { label, price: calcWeekPrice(childIdx, weekIdx, isRDB, isFN, getWeekPrices(inp.value)) };
+    });
     const total = weekBreakdown.reduce((s, w) => s + w.price, 0);
     const titleEl = block.querySelector(".child-block__title");
     const blockTitle = (titleEl && titleEl.textContent.trim()) || `Jugador/a ${childIdx + 1}`;
@@ -1369,14 +1540,14 @@ function updateTotalPriceCard() {
   const grandHtml = hasMulti ? `
     <div class="price-total__divider"></div>
     <div class="price-total__row price-total__row--grand">
-      <span class="price-total__name">Total estimat</span>
+      <span class="price-total__name">Total</span>
       <span class="price-total__amount">${grandTotal} €</span>
     </div>` : "";
 
   card.innerHTML = `<div class="price-total-card">
     <div class="price-total__header">
       <span class="price-total__icon" aria-hidden="true">€</span>
-      <span class="price-total__title">Preu estimat</span>
+      <span class="price-total__title">Preu final</span>
     </div>
     ${childrenHtml}${grandHtml}
   </div>`;

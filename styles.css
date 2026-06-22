@@ -901,6 +901,9 @@ body {
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
 /* ---- Punt verd "en directe" ---- */
+[data-tagline] {
+  color: #22c55e;
+}
 [data-tagline]::before {
   content: "";
   display: inline-block;
@@ -908,11 +911,11 @@ body {
   background: #22c55e;
   margin-right: 9px;
   vertical-align: middle; position: relative; top: -1px;
-  animation: live-pulse 2s ease-in-out infinite;
+  animation: live-pulse 1.8s ease-out infinite;
 }
 @keyframes live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,.65); }
-  65%       { box-shadow: 0 0 0 9px rgba(34,197,94, 0); }
+  0%   { box-shadow: 0 0 0 0    rgba(34,197,94,.7); }
+  100% { box-shadow: 0 0 0 6px rgba(34,197,94, 0); }
 }
 
 /* ---- Entrada escalonada al hero ---- */
@@ -1084,7 +1087,7 @@ body {
 /* ---- 2. Resum total de preus ---- */
 #price-total-card { margin-bottom: 22px; }
 .price-total-card {
-  background: linear-gradient(170deg, rgba(31,90,224,.04) 0%, rgba(34,197,94,.05) 100%);
+  background: linear-gradient(180deg, rgba(31,90,224,.03) 0%, rgba(31,90,224,.06) 100%);
   border: 1px solid rgba(31,90,224,.16); border-left: 3px solid var(--blue);
   border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow); animation: rise .4s ease both;
@@ -1113,8 +1116,8 @@ body {
 }
 .price-total__divider { height: 1px; background: var(--line-ink); margin: 6px 0; }
 .price-total__row--grand {
-  display: flex; justify-content: space-between; align-items: center;
-  background: linear-gradient(135deg, rgba(31,90,224,.14) 0%, rgba(34,197,94,.12) 100%);
+  display: flex; justify-content: flex-end; align-items: center; gap: 20px;
+  background: linear-gradient(180deg, rgba(31,90,224,.06) 0%, rgba(34,197,94,.18) 100%);
   margin: 8px -20px -18px; padding: 14px 20px 18px;
   border-radius: 0 0 var(--radius) var(--radius); border-bottom: none;
 }
@@ -1143,8 +1146,9 @@ body {
 .price-total__week-price { font-weight: 600; color: var(--ink); white-space: nowrap; }
 .price-total__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
 .price-total__tag {
-  font-size: .73rem; padding: 2px 8px; border-radius: 999px;
-  background: var(--blue-soft); color: var(--blue); font-weight: 600; letter-spacing: .01em;
+  font-size: .8rem; padding: 4px 10px; border-radius: 999px;
+  background: var(--card); border: 1.5px solid var(--line-ink);
+  color: var(--ink-soft); font-weight: 600;
 }
 
 /* ---- 3. Confetti ---- */
@@ -1246,14 +1250,15 @@ body {
 
   /* Gradient del bloc de preu final en mode fosc */
   .price-total-card {
-    background: linear-gradient(170deg, rgba(91,142,255,.07) 0%, rgba(34,197,94,.06) 100%);
+    background: linear-gradient(180deg, rgba(91,142,255,.08) 0%, rgba(91,142,255,.18) 100%);
     border-color: rgba(91,142,255,.22);
   }
-  .price-total__row--grand { background: linear-gradient(135deg, rgba(91,142,255,.18) 0%, rgba(34,197,94,.14) 100%); }
+  .price-total__row--grand { background: linear-gradient(180deg, rgba(91,142,255,.18) 0%, rgba(34,197,94,.28) 100%); }
   .price-total__row--grand .price-total__amount {
     background: linear-gradient(135deg, var(--blue) 0%, #4ade80 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
+  .price-total__tag { background: var(--card); border-color: var(--line-ink); }
 }
 
 /* ---- 10. Footer contacte ---- */

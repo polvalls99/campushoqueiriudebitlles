@@ -446,7 +446,7 @@ function addChildBlock(wrap, group, fileFields) {
   wrap.appendChild(childBlockEl(group, i, fileFields));
   childCount = wrap.querySelectorAll(".child-block").length;
   renumberChildren(wrap);
-  wrap.lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+  wrap.lastElementChild.scrollIntoView({ behavior: "smooth", block: "start" });
   updateProgress();
   updateAllPrices();
 }
@@ -741,7 +741,13 @@ function childWeeksEl(i) {
   const err = document.createElement("p"); err.className = "field__error"; err.textContent = "Tria almenys una setmana.";
   wrap.appendChild(err);
   const priceEl = document.createElement("div"); priceEl.className = "child-price"; priceEl.hidden = true;
-  priceEl.innerHTML = '<span class="child-price__amount"></span><span class="child-price__breakdown"></span>';
+  priceEl.innerHTML =
+    '<span class="child-price__icon" aria-hidden="true">€</span>' +
+    '<div class="child-price__body">' +
+      '<span class="child-price__label">Subtotal d\'aquest jugador/a</span>' +
+      '<span class="child-price__breakdown"></span>' +
+    '</div>' +
+    '<span class="child-price__amount"></span>';
   wrap.appendChild(priceEl);
   return wrap;
 }
@@ -939,6 +945,7 @@ function flashNote(msg) { els.submitNote.textContent = msg; els.submitNote.class
 // ---- Èxit ----
 function showDone(shared, children, campusName, result) {
   els.form.hidden = true; els.returning.hidden = true; els.done.hidden = false;
+  document.body.classList.add("page--done");
   launchConfetti();
   const s = CONFIG.settings || {};
   els.doneText.textContent = (s.mensaje_exito || "Inscripció rebuda correctament.") + (result && result.demo ? "  (mode demo: encara no s'ha guardat enlloc)" : "");
@@ -969,6 +976,7 @@ function showDone(shared, children, campusName, result) {
 }
 function resetForNew() {
   els.done.hidden = true; els.form.hidden = false; els.form.reset();
+  document.body.classList.remove("page--done");
   Object.keys(fileStore).forEach((k) => (fileStore[k] = []));
   childCount = 1;
   returningDismissed = false;

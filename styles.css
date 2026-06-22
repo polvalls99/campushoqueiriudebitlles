@@ -575,6 +575,8 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 /* Hero fora del flow durant loading → el loader queda centrat a pantalla */
 .page--loading .hero { display: none; }
+/* Pantalla d'èxit → amaguem l'hero perquè només es vegi la confirmació */
+.page--done .hero { display: none; }
 /* Pantalla de càrrega inicial — ocupa tot l'espai disponible */
 .page--loading #loading {
   min-height: calc(100vh - 60px);
@@ -718,6 +720,7 @@ body {
 .child-block {
   border: 1.5px solid var(--line-ink); border-radius: var(--radius-sm);
   padding: 16px 16px 4px; background: var(--paper); position: relative;
+  scroll-margin-top: 84px; /* deixa espai sota la barra fixa en fer scroll automàtic */
 }
 .child-block:first-child { border-top: none; padding-top: 4px; background: transparent; border-left: none; border-right: none; border-bottom: none; }
 .child-block__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -1073,16 +1076,30 @@ body {
 
 /* ---- 2. Preu per fill ---- */
 .child-price {
-  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  margin-top: 12px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding: 12px 16px;
   background: linear-gradient(135deg, rgba(31,90,224,.07) 0%, rgba(31,90,224,.02) 100%);
-  border: 1px solid rgba(31,90,224,.15); border-radius: var(--radius-sm);
+  border: 1px solid rgba(31,90,224,.15); border-left: 3px solid var(--blue);
+  border-radius: var(--radius-sm);
   animation: rise .3s ease both;
 }
-.child-price__amount {
-  font-family: "Anton", sans-serif; font-size: 1.3rem; letter-spacing: .02em; color: var(--blue);
+.child-price__icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  font-family: "Anton", sans-serif; font-size: 1rem;
+  display: grid; place-items: center;
+}
+.child-price__body { display: flex; flex-direction: column; min-width: 0; }
+.child-price__label {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-soft);
 }
 .child-price__breakdown { font-size: .82rem; color: var(--ink-soft); }
+.child-price__breakdown:empty { display: none; }
+.child-price__amount {
+  margin-left: auto; flex-shrink: 0;
+  font-family: "Anton", sans-serif; font-size: 1.45rem; letter-spacing: .02em; color: var(--blue);
+}
 
 /* ---- 2. Resum total de preus ---- */
 #price-total-card { margin-bottom: 22px; }

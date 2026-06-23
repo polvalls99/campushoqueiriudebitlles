@@ -1039,11 +1039,13 @@ body {
   .rdb-field { margin-bottom: 10px; }
   .rdb-toggle { padding: 7px 11px; gap: 8px; flex-wrap: wrap; }
   .rdb-toggle__box { width: 18px; height: 18px; }
-  .rdb-toggle__text { font-size: .82rem; line-height: 1.25; }
-  /* El badge no reserva espai fins que se selecciona; aleshores baixa
-     a una 2a línia sota el text, en comptes d'estrènyer-lo a 3 línies */
+  /* El text ocupa tota la 1a línia (al costat de la casella) i empeny
+     el badge a una 2a línia, en comptes d'estrènyer-lo a 3 línies */
+  .rdb-toggle__text { flex-basis: 100%; font-size: .82rem; line-height: 1.25; }
+  /* El badge no reserva espai fins que se selecciona; mida segons el
+     seu contingut, com una pill normal */
   .rdb-toggle__badge {
-    display: none; flex-basis: 100%; width: 100%;
+    display: none; width: auto;
     margin: 4px 0 0 26px; font-size: .64rem; padding: 2px 7px;
   }
   .rdb-toggle:has(input:checked) .rdb-toggle__badge { display: inline-block; }
@@ -1083,7 +1085,9 @@ body {
   border-radius: var(--radius-sm); background: #fff; width: 100%;
   transition: border-color .15s, background .15s; user-select: none;
 }
-.rdb-toggle:hover { border-color: var(--blue); background: var(--blue-soft); }
+@media (hover: hover) {
+  .rdb-toggle:hover { border-color: var(--blue); background: var(--blue-soft); }
+}
 .rdb-toggle:has(input:checked) { border-color: var(--blue); background: var(--blue-soft); }
 .rdb-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .rdb-toggle__box {
@@ -1268,7 +1272,7 @@ body {
 
   /* Checkboxes personalitzats */
   .rdb-toggle { background: var(--card); }
-  .rdb-toggle:hover, .rdb-toggle:has(input:checked) { background: var(--blue-soft); }
+  .rdb-toggle:has(input:checked) { background: var(--blue-soft); }
   .rdb-toggle__box { background: var(--card); }
   .rdb-toggle__badge { background: rgba(91,142,255,.18); color: var(--blue); }
   .check__box { background: var(--card); }

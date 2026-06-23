@@ -469,7 +469,7 @@ function sendConfirmation(settings, payload, rows) {
     var descompte = childEntry.descompte && childEntry.descompte !== "-" ? childEntry.descompte : "";
     if (preu != null && preu > 0) {
       preuBlock =
-        "<div style='background:#EEF3FB;border-radius:9px;padding:14px 16px;margin-top:16px'>" +
+        "<div style='background:#EEF3FB;border-left:4px solid #1F5AE0;border-radius:9px;padding:14px 16px;margin-top:16px'>" +
           "<table style='border-collapse:collapse;width:100%'><tr>" +
             "<td style='font-weight:700;color:#0E2A63;font-size:14px;vertical-align:middle'>Preu</td>" +
             "<td style='text-align:right;font-size:22px;font-weight:800;color:#1F5AE0;vertical-align:middle'>" + preu + " €</td>" +
@@ -489,7 +489,7 @@ function sendConfirmation(settings, payload, rows) {
       : (childName || "Jugador/a");
 
     return "<div style='border:1.5px solid #D6DEEC;border-radius:11px;overflow:hidden;margin-bottom:14px'>" +
-             "<div style='background:#EEF3FB;padding:13px 16px;border-bottom:1px solid #D6DEEC'>" +
+             "<div style='background:#EEF3FB;background:linear-gradient(135deg,#EEF3FB 0%,#E2ECFB 100%);padding:13px 16px;border-bottom:1px solid #D6DEEC'>" +
                "<span style='font-size:15px;font-weight:800;color:#0E2A63'>🏑 " + esc(blockTitle) + "</span>" +
              "</div>" +
              "<div style='padding:16px 16px 18px'>" +
@@ -507,7 +507,7 @@ function sendConfirmation(settings, payload, rows) {
     "<div style='font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#f0f4fb;padding:20px 10px;color:#16233D'>" +
 
       // Capçalera
-      "<div style='background:#0E2A63;border-radius:14px 14px 0 0;padding:30px 28px'>" +
+      "<div style='background:#0E2A63;background:linear-gradient(135deg,#0E2A63 0%,#16357C 55%,#1F5AE0 100%);border-radius:14px 14px 0 0;padding:30px 28px;border-top:4px solid #1F5AE0'>" +
         "<div style='font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9DC0FF;font-weight:700;margin-bottom:10px'>🏑 " + esc(camp) + "</div>" +
         "<div style='font-size:25px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:18px'>Inscripció confirmada!&nbsp;🎉</div>" +
         "<span style='display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 16px;font-size:13px;color:#fff;font-weight:700'>" + badge + "</span>" +

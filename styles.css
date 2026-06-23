@@ -1037,10 +1037,16 @@ body {
 
   /* Toggles "C.P. Riudebitlles" i "família nombrosa": més fins al mòbil */
   .rdb-field { margin-bottom: 10px; }
-  .rdb-toggle { padding: 7px 11px; gap: 8px; }
+  .rdb-toggle { padding: 7px 11px; gap: 8px; flex-wrap: wrap; }
   .rdb-toggle__box { width: 18px; height: 18px; }
   .rdb-toggle__text { font-size: .82rem; line-height: 1.25; }
-  .rdb-toggle__badge { font-size: .64rem; padding: 2px 7px; }
+  /* El badge no reserva espai fins que se selecciona; aleshores baixa
+     a una 2a línia sota el text, en comptes d'estrènyer-lo a 3 línies */
+  .rdb-toggle__badge {
+    display: none; flex-basis: 100%; width: 100%;
+    margin: 4px 0 0 26px; font-size: .64rem; padding: 2px 7px;
+  }
+  .rdb-toggle:has(input:checked) .rdb-toggle__badge { display: inline-block; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

@@ -1034,6 +1034,13 @@ body {
   .price-table thead th:first-child { min-width: 72px; }
   .price-table tbody td { padding: 8px 6px; }
   .price-table__price { font-size: .95rem; }
+
+  /* Toggles "C.P. Riudebitlles" i "família nombrosa": més fins al mòbil */
+  .rdb-field { margin-bottom: 10px; }
+  .rdb-toggle { padding: 7px 11px; gap: 8px; }
+  .rdb-toggle__box { width: 18px; height: 18px; }
+  .rdb-toggle__text { font-size: .82rem; line-height: 1.25; }
+  .rdb-toggle__badge { font-size: .64rem; padding: 2px 7px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -1151,6 +1158,7 @@ body {
 .price-total__meta { color: var(--ink-soft); font-size: .82rem; }
 .price-total__amount {
   font-family: "Anton", sans-serif; font-size: 1.2rem; color: var(--blue); letter-spacing: .02em;
+  white-space: nowrap; flex-shrink: 0;
 }
 .price-total__divider { height: 1px; background: var(--line-ink); margin: 10px 0 0; }
 
@@ -1187,9 +1195,10 @@ body {
 }
 .price-total__child:last-of-type { border-bottom: none; padding-bottom: 4px; }
 .price-total__child-hd {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 5px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; margin-bottom: 5px;
 }
+.price-total__child-hd .price-total__name { min-width: 0; }
 .price-total__week-row {
   display: flex; justify-content: space-between; align-items: center;
   padding: 3px 0 3px 10px; font-size: .85rem; color: var(--ink-soft);

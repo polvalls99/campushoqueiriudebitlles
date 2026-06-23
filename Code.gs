@@ -509,7 +509,7 @@ function sendConfirmation(settings, payload, rows) {
       // Capçalera
       "<div style='background:#0E2A63;border-radius:14px 14px 0 0;padding:30px 28px'>" +
         "<div style='font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9DC0FF;font-weight:700;margin-bottom:10px'>🏑 " + esc(camp) + "</div>" +
-        "<div style='font-size:25px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:18px'>Inscripció confirmada! 🎉</div>" +
+        "<div style='font-size:25px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:18px'>Inscripció confirmada!&nbsp;🎉</div>" +
         "<span style='display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 16px;font-size:13px;color:#fff;font-weight:700'>" + badge + "</span>" +
       "</div>" +
 

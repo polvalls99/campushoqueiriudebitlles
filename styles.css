@@ -1078,6 +1078,8 @@ body {
 .form-progress.is-complete .form-progress__label { color: #16a34a; font-weight: 700; }
 
 /* ---- 2. Checkbox C.P. Riudebitlles ---- */
+.rdb-heading { margin-top: 18px; margin-bottom: 8px; }
+.rdb-heading .field__help { margin-top: 2px; }
 .rdb-field { margin-bottom: 14px; }
 .rdb-toggle {
   display: inline-flex; align-items: center; gap: 10px; cursor: pointer;

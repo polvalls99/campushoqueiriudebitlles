@@ -437,6 +437,7 @@ function childBlockEl(group, i, fileFields) {
   group.fields.forEach((f) => block.appendChild(fieldEl(f, i)));
   // Camps de fitxer: un per fill, amb clau de magatzem única (c0__fieldId, c1__fieldId…)
   if (fileFields && fileFields.length) fileFields.forEach((f) => block.appendChild(fieldEl(f, i)));
+  block.appendChild(discountsHeadingEl());
   block.appendChild(rdbCheckboxEl(i));
   block.appendChild(familiaNombrosaCheckboxEl(i));
   block.appendChild(childWeeksEl(i));
@@ -1431,6 +1432,19 @@ function calcWeekPrice(childIdx, weekIdx, isRDB, isFN, prices) {
 }
 
 // Checkbox "Membre de família nombrosa"
+// Títol per al grup de descomptes/preus especials (les dues caselles)
+function discountsHeadingEl() {
+  const wrap = document.createElement("div");
+  wrap.className = "field rdb-heading";
+  const lab = document.createElement("p");
+  lab.className = "field__label";
+  lab.textContent = "Descomptes i preus especials";
+  const help = document.createElement("p");
+  help.className = "field__help";
+  help.textContent = "Marca les opcions que us corresponguin per aplicar la tarifa reduïda.";
+  wrap.append(lab, help);
+  return wrap;
+}
 function familiaNombrosaCheckboxEl(i) {
   const wrap = document.createElement("div");
   wrap.className = "field rdb-field";

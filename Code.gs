@@ -539,8 +539,18 @@ function childGroupForForm(form) {
 function emailRow(k, v) {
   return "<tr>" +
     "<td style='width:40%;padding:7px 16px 7px 0;color:#6B7C99;vertical-align:top;font-size:14px;word-break:break-word'>" + esc(k) + "</td>" +
-    "<td style='width:60%;padding:7px 0;font-weight:600;color:#16233D;font-size:14px;word-break:break-word'>" + esc(v) + "</td>" +
+    "<td style='width:60%;padding:7px 0;font-weight:600;color:#16233D;font-size:14px;word-break:break-word'>" + esc(fmtDate(v)) + "</td>" +
   "</tr>";
+}
+// Converteix dates en format ISO (YYYY-MM-DD) a DD/MM/YYYY. Deixa la resta de valors intactes.
+function fmtDate(v) {
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    var dd = ("0" + v.getDate()).slice(-2), mm = ("0" + (v.getMonth() + 1)).slice(-2);
+    return dd + "/" + mm + "/" + v.getFullYear();
+  }
+  var s = String(v == null ? "" : v).trim();
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$/);
+  return m ? m[3] + "/" + m[2] + "/" + m[1] : v;
 }
 function fieldLabels(form) {
   var m = {};
